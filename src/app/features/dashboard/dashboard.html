@@ -1,0 +1,109 @@
+<app-page-heading title="Dashboard" description="A clear view of your chain of trust.">
+  <a mat-stroked-button routerLink="/certificates">View certificates <app-icon name="arrow" /></a>
+</app-page-heading>
+
+<section class="metrics" aria-label="Workspace overview">
+  <a class="metric-card" routerLink="/issuers"
+    ><div class="metric-title"><span>Issuers</span><app-icon name="layers" /></div>
+    <div class="metric-value" aria-label="Issuer count unavailable">
+      —<app-icon name="external" />
+    </div>
+    <p>Certificate signing authorities</p>
+    <span class="metric-detail">Awaiting connection</span></a
+  >
+  <a class="metric-card" routerLink="/certificates"
+    ><div class="metric-title"><span>Certificates</span><app-icon name="certificate" /></div>
+    <div class="metric-value" aria-label="Certificate count unavailable">
+      —<app-icon name="external" />
+    </div>
+    <p>Certificates across your issuers</p>
+    <span class="metric-detail">Awaiting connection</span></a
+  >
+  <div class="metric-card environment-card">
+    <div class="metric-title"><span>Workspace</span><app-icon name="shield" /></div>
+    <div class="metric-value environment-value"><span class="status-dot"></span> Local preview</div>
+    <p>Your console is ready to explore</p>
+    <span class="metric-detail">Interface preview</span>
+  </div>
+</section>
+
+<div class="dashboard-grid">
+  <section class="panel trust-panel" aria-labelledby="trust-title">
+    <header class="panel-header">
+      <div>
+        <h2 id="trust-title">Your trust overview</h2>
+        <p>From root authority to every certificate.</p>
+      </div>
+      <span class="subtle-tag">Chain of trust</span>
+    </header>
+    <div class="trust-map" aria-hidden="true">
+      <svg viewBox="0 0 540 190" preserveAspectRatio="xMidYMid meet">
+        <path
+          d="M270 66v33H135v30 M270 99h135v30"
+          stroke="#cad8ca"
+          stroke-width="1.5"
+          stroke-dasharray="4 4"
+          fill="none"
+        />
+        <circle cx="270" cy="99" r="3" fill="#a7bfa8" />
+      </svg>
+      <div class="map-node map-root">
+        <span class="map-icon"><app-icon name="shield" /></span>
+        <div>Root authority<small>The foundation of trust</small></div>
+      </div>
+      <div class="map-node map-issuer"><app-icon name="layers" /><span>Issuers</span></div>
+      <div class="map-node map-certificate">
+        <app-icon name="certificate" /><span>Certificates</span>
+      </div>
+    </div>
+    <div class="trust-description">
+      <h3>A place for your public key infrastructure</h3>
+      <p>
+        Your issuers and certificates will come together here.<br />Explore the workspace to see
+        what’s ahead.
+      </p>
+      <a mat-button routerLink="/issuers">Explore issuers <app-icon name="arrow" /></a>
+    </div>
+  </section>
+
+  <section class="panel quick-panel" aria-labelledby="quick-title">
+    <header class="panel-header">
+      <div>
+        <h2 id="quick-title">Quick access</h2>
+        <p>Find your way around.</p>
+      </div>
+    </header>
+    <a class="quick-link" routerLink="/issuers"
+      ><span class="quick-icon"><app-icon name="layers" /></span
+      ><span>Issuers<small>Manage your signing authorities</small></span
+      ><app-icon name="arrow"
+    /></a>
+    <a class="quick-link" routerLink="/certificates"
+      ><span class="quick-icon"><app-icon name="certificate" /></span
+      ><span>Certificates<small>Explore your certificate inventory</small></span
+      ><app-icon name="arrow"
+    /></a>
+    <a class="quick-link" routerLink="/settings"
+      ><span class="quick-icon"><app-icon name="settings" /></span
+      ><span>Settings<small>Your console preferences</small></span
+      ><app-icon name="arrow"
+    /></a>
+    <div class="workspace-note">
+      <span class="eyebrow">A foundation for what’s next</span>
+      <p>One workspace for the<br />complete certificate lifecycle.</p>
+      <app-icon name="shield" />
+    </div>
+  </section>
+
+  <section class="panel activity-panel" aria-labelledby="activity-title">
+    <header class="panel-header">
+      <div><h2 id="activity-title">Recent activity</h2></div>
+      <span class="subtle-tag">Workspace activity</span>
+    </header>
+    <app-empty-state
+      icon="activity"
+      title="A fresh start"
+      description="Issuer and certificate activity will appear here when your authority is connected."
+    />
+  </section>
+</div>

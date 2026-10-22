@@ -1,0 +1,24 @@
+/.coverage
+/*.out
+
+.idea/
+.tmp/
+.docker/
+.vscode/
+.cursor/
+.aider*
+.DS_Store
+.codebase-memory
+
+CLAUDE.md
+INTENT.md
+FINDINGS.md
+REVIEW.md
+
+# Angular and Node
+/node_modules
+/dist
+/out-tsc
+/.angular
+/coverage
+*.tsbuildinfo
