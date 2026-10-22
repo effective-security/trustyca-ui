@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="310" height="80" viewBox="0 0 310 80" fill="none" role="img" aria-labelledby="title">
+  <title id="title">Trusty CA · Certification authority</title>
+  <path d="m34 10 25 10v19c0 16-14 25-25 29C23 64 9 55 9 39V20l25-10Z" fill="#b6cfa2"/>
+  <path d="m22 37 9 9 16-17" stroke="#153e32" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#163733" font-family="Segoe UI,Arial,sans-serif">
+    <text x="78" y="44" font-size="36" font-weight="700" letter-spacing="-1">Trusty<tspan font-weight="400"> CA</tspan></text>
+    <text x="80" y="63" font-size="9" font-weight="500" letter-spacing="2">CERTIFICATION AUTHORITY</text>
+  </g>
+</svg>

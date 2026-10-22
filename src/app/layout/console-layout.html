@@ -1,0 +1,104 @@
+<a class="skip-link" href="#main-content">Skip to content</a>
+<mat-sidenav-container
+  class="console"
+  [hasBackdrop]="isMobile()"
+  (backdropClick)="navOpen.set(false)"
+>
+  <mat-sidenav
+    class="sidebar"
+    [mode]="isMobile() ? 'over' : 'side'"
+    [opened]="!isMobile() || navOpen()"
+    (openedChange)="navOpen.set(isMobile() && $event)"
+    aria-label="Main navigation"
+  >
+    <div class="sidebar-inner">
+      <a
+        class="brand-link"
+        routerLink="/dashboard"
+        title="Open dashboard"
+        (click)="navOpen.set(false)"
+      >
+        <app-brand [inverse]="true" />
+      </a>
+      <div class="workspace-label">
+        <span class="workspace-symbol">T</span>
+        <div>Local workspace<small>Trusty CA console</small></div>
+      </div>
+      <p class="nav-label">Workspace</p>
+      <nav aria-label="Primary">
+        @for (item of navigation; track item.path) {
+          <a
+            class="nav-link"
+            [routerLink]="item.path"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            (click)="navOpen.set(false)"
+            ><app-icon [name]="item.icon" /><span>{{ item.label }}</span></a
+          >
+        }
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="trust-note">
+          <app-icon name="shield" />
+          <p>A foundation for<br /><strong>every chain of trust.</strong></p>
+        </div>
+        <div class="sidebar-version">
+          <span class="status-dot"></span> Local preview <span class="version">v0.1</span>
+        </div>
+      </div>
+    </div>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar class="toolbar">
+      <button
+        class="mobile-menu"
+        mat-icon-button
+        aria-label="Open navigation"
+        [attr.aria-expanded]="navOpen()"
+        (click)="navOpen.set(true)"
+      >
+        <app-icon name="menu" />
+      </button>
+      <div class="breadcrumb">
+        <span>Workspace</span><span class="breadcrumb-slash">/</span
+        ><strong>{{ section() }}</strong>
+      </div>
+      <span class="toolbar-spacer"></span>
+      <span class="preview-badge"><span class="status-dot"></span> Preview</span>
+      <span class="toolbar-divider"></span>
+      <button
+        mat-button
+        class="profile-button"
+        [matMenuTriggerFor]="profileMenu"
+        title="Open profile menu"
+      >
+        <span class="profile-content"
+          ><span class="avatar"><app-icon name="user" /></span>
+          <span class="profile-label">Preview user<small>Local workspace</small></span
+          ><app-icon name="chevron"
+        /></span>
+      </button>
+      <mat-menu #profileMenu="matMenu" xPosition="before">
+        <button mat-menu-item routerLink="/account">
+          <app-icon class="menu-icon" name="user" />Account
+        </button>
+        <button mat-menu-item routerLink="/settings">
+          <app-icon class="menu-icon" name="settings" />Settings
+        </button>
+        <mat-divider />
+        <button mat-menu-item (click)="logout()">
+          <app-icon class="menu-icon" name="logout" />Logout
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <div class="content-frame">
+      <main id="main-content" tabindex="-1"><router-outlet /></main>
+      <footer class="console-footer">
+        <span>Trusty CA <span class="footer-separator">/</span> Certification authority</span>
+        <span><app-icon name="lock" /> Local preview workspace</span>
+      </footer>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
