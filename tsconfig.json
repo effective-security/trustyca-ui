@@ -4,7 +4,10 @@
   "compileOnSave": false,
   "compilerOptions": {
     "strict": true,
-    "noImplicitOverride": true,
+    /* The protobuf-ts output in src/services/trustyca/protogen overrides MessageType
+       members without the `override` keyword, and one program cannot relax the flag
+       for a single folder. Every other strict flag stays on. */
+    "noImplicitOverride": false,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
@@ -13,7 +16,12 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "preserve",
+    /* The framework-free layer (libts, models, types, services) imports by `src/...`
+       as in secdi-ui, so it can be shared with a mobile shell unchanged. */
+    "paths": {
+      "src/*": ["./src/*"]
+    }
   },
   "angularCompilerOptions": {
     "strictTemplates": true,

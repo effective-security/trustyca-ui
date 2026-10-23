@@ -1,17 +1,14 @@
-# Future gRPC-web integration
+# API boundary
 
-This folder reserves the transport boundary. There is no server connection, HTTP
-provider, API configuration, or generated protobuf code in this phase.
+The transport and the services live outside Angular, in `src/services/trustyca`
+(generated `protogen/`, hand-written `rpc/`), with the platform, storage and user
+state in `src/services` and the shared interfaces in `src/types`. This folder
+holds the Angular side of that boundary: the injection tokens,
+`provideTrustyApi()`, the error mapping and the resource helpers
+(`Documentation/DESIGN.md` sections 3.1 and 10).
 
-When adding the generator:
-
-1. Put generated TypeScript messages and gRPC-web stubs in `generated/` (create it
-   as part of code generation). Keep generated files separate from handwritten code.
-2. Add injectable client adapters here to own transport setup and configuration.
-3. Expose feature-facing services to the pages in `features/`. Keep generated
-   transport types out of shared presentation components where practical.
-4. Replace `core/auth/PreviewSession` and `previewGuard` with real authentication.
-   The current session flag and guard are navigation conveniences, not security.
-
-Choose the protobuf generator and runtime together in the next phase; no transport
-dependency is installed yet.
+Pages inject the `I*Service` interfaces, never the generated clients, so a page
+test gets a fake service and the generated code is exercised in the service
+tests only. `core/auth/PreviewSession` and `previewGuard` are the placeholder
+login of the scaffold; phase 2 of `Documentation/PLAN.md` replaces them with the
+real authentication.
