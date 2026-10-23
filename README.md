@@ -54,16 +54,31 @@ src/app/
     settings/
   shared/             Brand, SVG icons, page heading, and empty-state components
   app.routes.ts       Application routes and lazy loading
+src/libts/            Framework-free utilities: logging, JSON, strings, dates, storage
+src/models/           Token and UserInfo models
+src/types/            Interfaces shared by the layers (IAppUser, IAppPlatform, ...)
+src/services/trustyca/
+  protogen/           Generated protobuf messages and gRPC-Web clients (make proto)
+  rpc/                Hand-written service wrappers; enums.ts is generated
 src/styles.scss       Material theme and shared presentation styles
 ```
 
-## Next phase: gRPC-web
+## API clients
 
-Keep generated protobuf messages and client stubs under `src/app/core/api/generated/`
-when introducing code generation. Add handwritten injectable adapters beside that
-directory, then feature services for the views. See
-[the integration notes](src/app/core/api/README.md). No protobuf generator,
-transport runtime, API URL, or backend dependency is configured yet.
+`make proto` regenerates the TypeScript clients from the protos of the `trustyca`
+checkout next to this repository (`TRUSTYCA_PROJ`, default `../trustyca`):
+`@protobuf-ts/protoc` writes the messages and gRPC-Web clients to
+`src/services/trustyca/protogen`, the `effectivesecurity/protoc-gen-go` image
+writes the enum display names to `src/services/trustyca/rpc/enums.ts`, and
+`npm run format:fix` formats the result. Generated files are committed and never
+edited by hand; `protogen` is excluded from Prettier and ESLint. The committed
+clients match `trustyca` commit `0c02438`; regenerate after pulling the backend
+and commit the result.
+
+`npm run lint`, `npm run format` and `npm run typecheck` (together: `make lint`)
+check the sources, the formatting and the types. The design and the execution
+plan are in [Documentation/DESIGN.md](Documentation/DESIGN.md) and
+[Documentation/PLAN.md](Documentation/PLAN.md).
 
 The session-storage flag and route guard only simulate the login flow. Replace
 them with real authentication and server-side authorization before connecting
