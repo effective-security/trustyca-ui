@@ -1,0 +1,183 @@
+// The content of the auth pages (login, landing, org selection and the
+// notices), projected into app-auth-layout
+:host {
+  display: block;
+}
+.login-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #5f7365;
+}
+h1 {
+  font-size: clamp(42px, 4.4vw, 68px);
+  letter-spacing: -3px;
+  line-height: 1.08;
+  font-weight: 530;
+  margin: 28px 0 24px;
+}
+h1.compact {
+  font-size: clamp(32px, 3vw, 44px);
+  letter-spacing: -1.5px;
+}
+h1 span {
+  color: #65826b;
+}
+.login-description {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #626f61;
+  margin-bottom: 32px;
+}
+.login-button {
+  width: 100%;
+  height: 50px;
+  border-radius: 6px;
+}
+.login-button span {
+  margin-right: 16px;
+}
+.login-button app-icon {
+  width: 18px;
+  height: 18px;
+}
+.login-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #626f61;
+  margin-top: 16px;
+}
+.login-hint app-icon {
+  width: 12px;
+  height: 12px;
+}
+.auth-form {
+  display: grid;
+  gap: 12px;
+}
+.auth-form mat-form-field {
+  width: 100%;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  font-size: 10px;
+  color: #8a978a;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.provider-button {
+  width: 100%;
+  height: 46px;
+  border-radius: 6px;
+  justify-content: flex-start;
+}
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid #e8d3b0;
+  background: #fbf5ea;
+  color: #6b4f1d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.notice.error {
+  border-color: #efc7c2;
+  background: #fcf1ef;
+  color: #8a2d22;
+}
+.notice app-icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+.working {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.org-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.org-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.org-option:hover:not(:disabled),
+.org-option.current {
+  border-color: #9fbea5;
+  background: #f3f8f1;
+}
+.org-option:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.org-option strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.org-option small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.org-option .role {
+  margin-left: auto;
+  font-size: 10px;
+  color: #4f6b57;
+  border: 1px solid #dbe5d8;
+  border-radius: 4px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+@media (max-width: 800px) {
+  h1 {
+    font-size: clamp(48px, 10vw, 66px);
+  }
+  h1.compact {
+    font-size: clamp(30px, 8vw, 40px);
+  }
+}

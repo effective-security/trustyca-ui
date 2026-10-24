@@ -1,15 +1,45 @@
 import { Routes } from '@angular/router';
-import { previewGuard } from './core/auth/preview.guard';
+import { authGuard, loginGuard, orgGuard } from './core/auth/guards';
 
 export const routes: Routes = [
   {
     path: 'login',
-    title: 'Login · Trusty CA',
+    title: 'Sign in · Trusty CA',
+    canActivate: [loginGuard],
     loadComponent: () => import('./features/login/login').then((m) => m.Login),
   },
   {
+    path: 'auth',
+    children: [
+      {
+        path: 'authenticated',
+        title: 'Signing in · Trusty CA',
+        loadComponent: () => import('./features/auth/authenticated').then((m) => m.Authenticated),
+      },
+      {
+        path: 'select-org',
+        title: 'Choose an organization · Trusty CA',
+        canActivate: [authGuard],
+        loadComponent: () => import('./features/auth/select-org').then((m) => m.SelectOrg),
+      },
+      {
+        path: 'noorg',
+        title: 'No organization · Trusty CA',
+        canActivate: [authGuard],
+        loadComponent: () => import('./features/auth/no-org').then((m) => m.NoOrg),
+      },
+      {
+        path: 'norole',
+        title: 'No access · Trusty CA',
+        canActivate: [authGuard],
+        loadComponent: () => import('./features/auth/no-role').then((m) => m.NoRole),
+      },
+      { path: '', pathMatch: 'full', redirectTo: '/login' },
+    ],
+  },
+  {
     path: '',
-    canActivateChild: [previewGuard],
+    canActivateChild: [authGuard, orgGuard],
     loadComponent: () => import('./layout/console-layout').then((m) => m.ConsoleLayout),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -17,17 +47,6 @@ export const routes: Routes = [
         path: 'dashboard',
         title: 'Dashboard · Trusty CA',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
-      },
-      {
-        path: 'issuers',
-        title: 'Issuers · Trusty CA',
-        loadComponent: () => import('./features/issuers/issuers').then((m) => m.Issuers),
-      },
-      {
-        path: 'certificates',
-        title: 'Certificates · Trusty CA',
-        loadComponent: () =>
-          import('./features/certificates/certificates').then((m) => m.Certificates),
       },
       {
         path: 'account',
@@ -39,6 +58,8 @@ export const routes: Routes = [
         title: 'Settings · Trusty CA',
         loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),
       },
+      // last: the CA pages load with their services when no route above matches
+      { path: '', loadChildren: () => import('./features/ca/ca.routes').then((m) => m.CA_ROUTES) },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },

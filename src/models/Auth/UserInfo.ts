@@ -10,6 +10,7 @@ export class UserInfo implements IUserInfo {
       from.Orgs,
       from.OrgID,
       from.OrgRole,
+      from.OrgRoleSource,
     );
     return copy;
   }
@@ -26,5 +27,6 @@ export class UserInfo implements IUserInfo {
     public Orgs?: Record<string, string>,
     public OrgID?: string,
     public OrgRole?: string,
+    public OrgRoleSource?: string,
   ) {}
 }

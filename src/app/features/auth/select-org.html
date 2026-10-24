@@ -1,0 +1,51 @@
+<app-auth-layout>
+  <span class="login-eyebrow"><span class="status-dot"></span> {{ session.profile().Email }}</span>
+  <h1 class="compact" id="select-org-title">Choose an organization</h1>
+  <p class="login-description">
+    Your access is granted per organization. Pick the one to work in; you can switch at any time
+    from the profile menu.
+  </p>
+
+  @if (failure() || loadError(); as message) {
+    <div class="notice error" role="alert">
+      <app-icon name="lock" /><span>{{ message }}</span>
+    </div>
+  }
+
+  @if (orgs.isLoading()) {
+    <p class="working" role="status">Loading your organizations…</p>
+  } @else {
+    <ul class="org-list" aria-labelledby="select-org-title">
+      @for (org of items(); track org.OrgID) {
+        <li>
+          <button
+            type="button"
+            class="org-option"
+            [class.current]="org.OrgID === session.orgId()"
+            [attr.aria-current]="org.OrgID === session.orgId() ? 'true' : null"
+            [disabled]="busyId() !== ''"
+            (click)="select(org)"
+          >
+            <app-icon name="layers" />
+            <span
+              ><strong>{{ org.OrgName || org.OrgAlias }}</strong
+              ><small>{{ busyId() === org.OrgID ? 'Switching…' : org.OrgAlias }}</small></span
+            >
+            <span class="role">{{ roleLabel(org) }}</span>
+          </button>
+        </li>
+      } @empty {
+        @if (!loadError()) {
+          <li class="notice">You are not a member of any organization yet.</li>
+        }
+      }
+    </ul>
+  }
+
+  <div class="actions">
+    @if (loadError()) {
+      <button mat-stroked-button type="button" (click)="orgs.reload()">Retry</button>
+    }
+    <button mat-button type="button" (click)="session.signOut()">Sign out</button>
+  </div>
+</app-auth-layout>

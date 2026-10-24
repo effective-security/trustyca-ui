@@ -1,7 +1,7 @@
 # Trusty CA Console Design
 
-Status: proposed design for v1 of the Trusty CA management console and
-dashboard. Companion documents: [PLAN.md](PLAN.md) (execution plan), the
+Status: design for v1 of the Trusty CA management console and dashboard;
+sections 3, 4, 10 and 12 are implemented (phases 0 to 2 of PLAN.md). Companion documents: [PLAN.md](PLAN.md) (execution plan), the
 backend design in `../trustyca/Documentation/design/DESIGN.md` and the API
 in `../trustyca/api/pb/protos`. The repository `trustyca` is expected next to
 this one, as the `Makefile` assumes (`TRUSTYCA_PROJ`).
@@ -26,8 +26,11 @@ later without touching the pages, which is what `IAppPlatform` is for.
 ## 2. The backend surface
 
 The console talks to one host, the `wfe` listener of `trustycasvc`
-(`https://localhost:8880` in the dev configuration). Everything is gRPC-Web
-except the login redirects and the few REST calls that set or clear cookies.
+(`https://localhost:8880` in the dev configuration). Every call is gRPC-Web.
+The sign-in is a browser navigation to `/v1/auth/authorize`, and a cookie
+session makes two REST calls because a gRPC response cannot replace or
+remove its HttpOnly cookie: `POST /v1/auth/org` (switch org) and
+`DELETE /pb.Auth/RevokeToken` (sign out).
 Since the signing plane split of `trustyca` (commits `1cd22a8` and
 `0c02438`, "Refactor Backend service"), the `wfe` serves the whole public CA
 API to tenant tokens as a proxy of `privpb.Backend`; the issuer keys and the
@@ -37,11 +40,11 @@ token.
 
 | Service     | Transport from the browser                  | Used for                                                          |
 | ----------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| `pb.Auth`   | gRPC-Web, plus REST for cookies and the OAuth redirects | providers, code exchange, user token, org selection, caller scope, revoke |
+| `pb.Auth`   | gRPC-Web; the two calls of a cookie session above over REST | providers, code exchange, user token, org selection, caller scope, revoke |
 | `pb.Orgs`   | gRPC-Web                                    | org, projects, members and invites, API keys                      |
 | `pb.CA`     | gRPC-Web                                    | issuers, roots, profiles, certificates, revocation, CRLs; every call is forwarded by the `wfe` to the signing plane with the org of the token |
 | `pb.CIS`    | gRPC-Web                                    | public lookups by IKID, serial, SKID or SHA-256; platform roots   |
-| `pb.Status` | REST `GET /v1/status/version`               | server version in the footer and the About dialog                 |
+| `pb.Status` | gRPC-Web (`Status.Version`, open to guests) | server version in the footer and the About dialog                 |
 
 Not for the console: `privpb.Backend` (the same CA methods with an explicit
 `OrgID`, for the RA, the operator and the `wfe` itself, holding the issuer
@@ -54,7 +57,8 @@ Facts of the server that shape the design:
   with `Content-Type: application/grpc-web+proto` is upgraded to gRPC in
   process, and its `Origin` is checked against `cors.allowed_origins`. No
   Envoy or grpcwebproxy is needed. The dev configuration allows the Angular
-  dev server (`http://localhost:4200`), the headers the transport and the
+  dev server (`http://localhost:4200`, and `https://app.local.trustyca.io:4200`
+  for the cookie session), the headers the transport and the
   console send (`X-Grpc-Web`, `Grpc-Timeout`, `X-User-Agent`,
   `X-CSRF-Token`, `X-Device-ID`, `X-Correlation-ID`) and exposes the gRPC
   trailers (`Grpc-Status`, `Grpc-Message`) and `X-Correlation-ID`; deployed
@@ -115,8 +119,8 @@ Facts of the server that shape the design:
 │  models/, types/      Token, UserInfo and the I* interfaces the layers share              │
 │  libts/               logging, json, strings, objects, datetime, storage primitives       │
 ├──────────────────────────────────── transport ───────────────────────────────────────────┤
-│  @protobuf-ts GrpcWebFetchTransport (binary, credentials: include, auth interceptor)      │
-│  fetch for /v1/auth/* cookie calls and /v1/status                                         │
+│  @protobuf-ts GrpcWebFetchTransport (binary, device and auth interceptors)               │
+│  fetch for the two calls of a cookie session: POST /v1/auth/org, DELETE RevokeToken       │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -140,14 +144,18 @@ application:
 | ----------------- | ------------------------------------------------------------------- |
 | `RUNTIME_CONFIG`  | `{ apiUrl, loginResponseType, appVersion }` (section 12.3)          |
 | `APP_PLATFORM`    | `AppPlatformService` over `PlatformInfo(window)`                    |
-| `STORAGE`         | `StorageService(platform, hostname + '_')`                          |
-| `APP_USER`        | `AppUser(storage)`                                                  |
-| `RPC_TRANSPORT`   | `GrpcWebFetchTransport` with the auth interceptor                   |
-| `AUTH_SERVICE`, `ORGS_SERVICE`, `CA_SERVICE`, `CIS_SERVICE`, `STATUS_SERVICE` | the rpc services |
+| `STORAGE`         | `StorageService(platform, apiHost + '_')`                           |
+| `APP_USER`        | `AppUser(storage, document)`                                        |
+| `RPC_TRANSPORT`   | `GrpcWebFetchTransport` with the device and auth interceptors       |
+| `AUTH_SERVICE`, `ORGS_SERVICE`, `STATUS_SERVICE` | the services of the session         |
+
+`provideCaApi()` adds `CA_SERVICE` and `CIS_SERVICE` on the lazy routes of
+the CA pages (`features/ca/ca.routes.ts`), so the CA messages (about 125 kB)
+load with the first CA page and not with the login.
 
 `AuthStore` and `TenantStore` are `providedIn: 'root'` Angular services that
-wrap `AppUser.observable` and the discovery calls in signals, so templates
-and guards read `authStore.user()`, `authStore.isAuthenticated()`,
+turn `AppUser.subscribe` and the discovery calls into signals, so templates
+and guards read `auth.profile()`, `auth.isAuthenticated()`, `auth.can(…)`,
 `tenantStore.projectId()` without subscriptions.
 
 ## 4. Authentication and session
@@ -158,14 +166,14 @@ The server implements the same OAuth front door as `secdi`:
 
 | Step | Call | Notes |
 | ---- | ---- | ----- |
-| providers | `Auth.GetProviders{Email?}` → `{AuthURL, ProviderNames}` | with an email the server answers the one provider of its domain; without, every configured provider (`github`, `google`, `local` in dev) |
-| authorize | browser navigates to `AuthURL?client_id=trustyca&provider=<name>&redirect_uri=<origin>/auth/authenticated&response_type=code&response_mode=query&scope=openid email profile&code_challenge=<S256>&code_challenge_method=S256&device_id=<id>&login_hint=<email>&remember_me=<bool>&nonce=<random>` | `redirect_uri` host must be in `auth.allowed_redirect_domains` (`localhost`, `app.local.trustyca.io`, `app.dev.trustyca.io`) |
+| providers | `Auth.GetProviders{Email?}` → `{AuthURL, ProviderNames}` | with an email the server answers the one provider of its domain, or refuses an address that is neither in an allowed domain nor invited; without, every configured provider (`local`, `github` in dev) |
+| authorize | browser navigates to `<apiUrl>/v1/auth/authorize?client_id=trustyca&provider=<name>&redirect_uri=<origin>/auth/authenticated&response_type=code&response_mode=query&scope=openid email profile&code_challenge=<S256>&code_challenge_method=S256&device_id=<id>&idpuser.email=<email>&login_hint=<email>&remember_me=<bool>&nonce=<random>` | built on the API URL of the console, not `AuthURL`: the callback that sets the cookies of a cookie session runs on the host of this request, and `auth.auth_url` stays on localhost for the CLI. `idpuser.email` binds the login to an address (the email flow, and the `local` provider, which signs `local+user1@x` in as `user1@x`); `redirect_uri` host must be in `auth.allowed_redirect_domains` (`localhost`, `app.local.trustyca.io`, `app.dev.trustyca.io`) |
 | callback | the IdP returns to `/v1/auth/callback`; the server creates the user on first login, accepts pending invites, selects the first accessible org (or creates the default org when configured), signs the token | |
-| landing | the server redirects to `redirect_uri` with the result | `code`: `?code=<otc>&expires_in=30`; `cookie`: `?cookie_set=true&csrf=<csrf cookie name>&expires_in=…` and sets the cookies; `token`: `?token=<jwt>` (CLI only, never for the SPA); failure: `?error=…&error_description=…` |
+| landing | the server redirects to `redirect_uri` with the result | `code`: `?code=<otc>&expires_in=30`; `cookie`: `?cookie_set=true&csrf=<csrf cookie name>&expires_in=…` and sets the cookies; `token`: `?token=<jwt>` (CLI only, never for the SPA); failure after the state decoded: `?error=<RFC 6749 code>&error_description=…` |
 | exchange | `Auth.ExchangeCode{Code, Verifier}` → `Token{AccessToken, ExpiresIn}` | the one-time code lives 30 s and is bound to the PKCE verifier |
-| profile | `Auth.GetUserToken` with `Authorization: Bearer` (or the cookie and `x-csrf-token`) → `UserTokenResponse{Token, UserInfo}` | `UserInfo.Orgs` maps org ID to resolved role; `OrgID`, `OrgRole`, `OrgRoleSource` describe the selected org; `Token.AccessToken` is empty in cookie mode |
-| switch org | `Auth.SelectOrg{OrgID, RememberMe}` → `UserTokenResponse` | the only tenant request that carries `OrgID`; returns a new token with the same expiry |
-| sign out | `Auth.RevokeToken` (gRPC) or `DELETE /pb.Auth/RevokeToken` (REST, also clears cookies), `DELETE /v1/auth/removecookie` | |
+| profile | `Auth.GetUserToken` with `Authorization: Bearer` (or the cookie and `x-csrf-token`) → `UserTokenResponse{Token, UserInfo}` | `OrgID`, `OrgRole`, `OrgRoleSource` describe the selected org; `UserInfo.Orgs` is empty here (only `SelectOrg` fills it), so the console lists the orgs with `Orgs.GetUserOrgs`; `Token.Provider` names the IdP; `Token.AccessToken` is empty in cookie mode |
+| switch org | bearer: `Auth.SelectOrg{OrgID, RememberMe}` → `UserTokenResponse`; cookie: `POST /v1/auth/org` with the same JSON, which re-sets both cookies | the only tenant request that carries `OrgID`; returns a new token with the same expiry |
+| sign out | bearer: `Auth.RevokeToken`; cookie: `DELETE /pb.Auth/RevokeToken`, which removes both cookies whatever the outcome and revokes the token | a revoked token is refused at once by the process that revoked it, by the others within 5 minutes; `/v1/auth/removecookie` is not needed |
 
 ### 4.2 Two session modes
 
@@ -183,15 +191,18 @@ configuration `loginResponseType`:
   (readable) on `identity_map.cookies.domain` (`.local.trustyca.io` in dev),
   `SameSite=None; Secure`. The console stores only the CSRF cookie *name*
   from the `csrf` query parameter, reads the cookie on every call and sends
-  `x-csrf-token`; the transport uses `credentials: 'include'`. This mode
-  needs the console on a host under that cookie domain
-  (`https://app.local.trustyca.io`). It also needs a REST `SelectOrg` that
-  re-sets the cookie, which `secdi` has (`/v1/auth/tenant`) and `trustyca`
-  has commented out (BE-2). Until BE-2 lands, the cookie mode is limited to
-  the org of the login.
+  `x-csrf-token` (without it the server ignores the cookie and the caller
+  is a guest); the transport uses `credentials: 'include'`. This mode needs
+  the console and the API on hosts under that cookie domain, over https:
+  `npm run start:cookie` serves the console on
+  `https://app.local.trustyca.io:4200` against
+  `https://api.local.trustyca.io:8880` (both in `/etc/hosts`; the server
+  certificate names `api.local.trustyca.io`). The org switch and the
+  sign-out are the REST calls of section 4.1 (BE-2, done).
 
-`AppUser.authenticated()` is the single source of truth: a `Bearer` token
-with a non-empty `AccessToken`, or a `cookie` token, both unexpired.
+`AppUser.isAuthenticated` is the single source of truth: a bearer token
+with a non-empty `AccessToken`, or a `cookie` token, both unexpired. A
+bearer session never sends cookies (`credentials: 'same-origin'`).
 
 ### 4.3 Client flow and routes
 
@@ -202,15 +213,16 @@ with a non-empty `AccessToken`, or a `cookie` token, both unexpired.
    │ dedupe the code (memory storage), clean the address bar
    │ ExchangeCode ──▶ GetUserToken ──▶ AppUser.setToken(token, profile)
    │
-   ├─ profile.OrgID set         ──▶ GetCallerScope, then the after-auth route or /dashboard
-   ├─ Orgs non-empty, no OrgID  ──▶ /auth/select-org (pick, SelectOrg, then as above)
-   ├─ no Orgs at all            ──▶ /auth/noorg  ("ask an administrator to invite you")
-   └─ failure                   ──▶ /login?error=… after a short notice
+   ├─ profile.OrgID set         ──▶ GetCallerScope and GetOrg, then the after-auth route or /dashboard
+   │                                (no org role and no project role: /auth/norole)
+   ├─ no OrgID, GetUserOrgs     ──▶ /auth/select-org (pick, SelectOrg, then as above)
+   ├─ no OrgID, no orgs at all  ──▶ /auth/noorg  ("ask an administrator to invite you")
+   └─ error or failed call      ──▶ sign out locally, /login?error=…&error_description=…
 ```
 
 | Route                 | Guard         | Purpose                                                              |
 | --------------------- | ------------- | -------------------------------------------------------------------- |
-| `/login`              | none          | provider buttons (from `ProviderNames`), email for enterprise domains, remember me, error banner from `?error` |
+| `/login`              | `loginGuard`  | provider buttons (from `ProviderNames`), email for enterprise domains, remember me, error banner from `?error`; a signed-in user goes to the requested page |
 | `/auth/authenticated` | none          | landing for `code`, `cookie_set` and `error`; exchange and profile load; never renders the token |
 | `/auth/select-org`    | authenticated | org list from `UserInfo.Orgs` and `Orgs.GetUserOrgs` with roles; `SelectOrg` |
 | `/auth/noorg`         | authenticated | no accessible org; sign out                                          |
@@ -221,14 +233,18 @@ with a non-empty `AccessToken`, or a `cookie` token, both unexpired.
 `/login?returnUrl=…` and the return URL is stored as the after-auth route
 (same origin, not `/login`, as the scaffold already validates). `orgGuard`
 sends an authenticated user without `OrgID` to `/auth/select-org` or
-`/auth/noorg`.
+`/auth/noorg`, and a user whose caller scope has no org role and no project
+role to `/auth/norole` on every console navigation, not only after the
+sign-in (the scope loads once per org; when it cannot load, the page opens
+and shows its own failures).
 
 ### 4.4 Expiry and sign-out
 
-- `AppUser` knows `ExpiresAt`; `AuthStore` schedules a check and flips to
-  `sessionExpired` a minute before. The shell shows a "session expired" bar
-  with a sign-in link; the next call that fails with gRPC `UNAUTHENTICATED`
-  (16) does the same.
+- `AppUser` knows `ExpiresAt`; `AuthStore` schedules a timer that signs
+  the user out with the expired flag (`AppUser.logout(true)`) a minute
+  before. The shell shows a "session expired" bar with a sign-in link that
+  returns to the page, and the login a notice; a call refused with gRPC
+  `UNAUTHENTICATED` (16) on the session does the same (auth interceptor).
 - Sign-out calls `RevokeToken` (REST in cookie mode so the cookies are
   cleared, gRPC otherwise), then `AppUser.logout()`, which clears the
   persisted token, the per-org data and the in-memory caches, and routes to
@@ -297,7 +313,7 @@ profile menu            Account, Settings, Switch organization, Sign out
 
 The toolbar shows the breadcrumb, the org switcher, the project selector,
 the session state and the profile menu. The footer shows the server build
-from `GET /v1/status/version` and the console version.
+from `Status.Version` and the console version.
 
 ## 8. Pages
 
@@ -470,17 +486,20 @@ component behind an interface, so the chart library is a build-time choice.
 new GrpcWebFetchTransport({
   baseUrl: config.apiUrl,
   format: 'binary',
-  fetchInit: { credentials: 'include' },
+  fetchInit: { credentials: cookieMode ? 'include' : 'same-origin' },
   timeout: 15_000,
-  interceptors: [authInterceptor, deviceInterceptor],
+  interceptors: [deviceInterceptor(deviceId), authInterceptor(user)],
 })
 ```
 
 The auth interceptor is `secdi`'s: unless the call already sets
 `authorization`, it merges `AppUser.rpcMetadata()` (bearer header, or
-`x-csrf-token` in cookie mode). The device interceptor adds `x-device-id`.
-REST calls (`/v1/auth/*`, `/v1/status/*`) use `fetch` with the same
-credentials and headers.
+`x-csrf-token` in cookie mode), and a call refused with `UNAUTHENTICATED`
+on the session signs the user out with the expired flag. The device
+interceptor adds `x-device-id`. The two REST calls of a cookie session use
+`fetch` with `credentials: 'include'` and `X-CSRF-Token`, and map an HTTP
+failure to an `RpcError` with the matching gRPC code, so the error mapping
+is one.
 
 `CaService` passes a longer `timeout` option on the key operations (section
 2.1), which protobuf-ts sends as `grpc-timeout` (the `wfe` CORS allows the
@@ -494,9 +513,14 @@ each with an `I*Service` interface, a `$rpc` generated client, `log.debug`
 on entry and `log.error` on failure, returning `Promise<Response>` (the
 `secdi` pattern, which keeps the services testable with a mocked client).
 `pb.CA` requests carry no tenancy but `ProjectID`; `CaService` fills it from
-the project selection when a page passes none, and owns the longer deadline
-of the key operations and the `UNAVAILABLE` mapping of section 2.1. `AuthService` owns the REST cookie calls and the
-`setToken` into `AppUser`, as `secdi`'s `AuthService` does.
+the project selection in the list requests and `PublishCrls` when the page
+names none (an explicit `''` asks for every project), while create, revoke
+and label requests name their project themselves. It owns the longer
+deadline of the key operations (60 s) and turns `UNAVAILABLE` into
+`CaUnavailableError` (section 2.1). `AuthService` owns the authorize URL,
+the REST cookie calls and the `setToken` into `AppUser`, as `secdi`'s
+`AuthService` does. Requests are logged with `KeyPem`, `Secret`, `Request`,
+`AccessToken`, `Code` and `Verifier` redacted.
 
 ### 10.3 Resources and caching
 
@@ -574,10 +598,22 @@ from `DOCUMENT.defaultView`, which keeps the services testable under jsdom.
 
 `AppUser` is ported with its persistence (`trustyca_user` in session or
 local storage, chosen by "Remember me"), per-org data (`projectId` instead
-of `cloudId`), user and org preferences, PKCE helpers and `rpcMetadata`.
+of `cloudId`), user, org and project preferences, PKCE helpers (Web Crypto
+S256) and `rpcMetadata`. The per-org data and the preferences are kept per
+user ID (`trustyca_user_data`) and leave memory on sign-out, so another
+account on the same browser inherits neither. It has no RxJS:
+`subscribe(listener)` returns the function that removes the listener, and
+`AuthStore` holds the signals. A refused session ends only when the token
+that made the call is still the current one.
+
 `StorageService` prefixes keys with the API host, so two environments in
-one browser do not share sessions. The `csrf_token_name` key and the
-`otc_binding` verifier follow `secdi`.
+one browser do not share sessions, and falls back to memory when the
+browser refuses its storage (reading `window.localStorage` throws
+`SecurityError` when site data is blocked). The values of a login in
+progress, the `otc_binding` verifier and the after-auth route, always live
+in the session storage of the tab: they survive the redirect to the
+identity provider, and a login in another tab cannot overwrite them. The
+`csrf_token_name` key follows the persisted storage.
 
 ### 12.3 Runtime configuration
 
@@ -589,9 +625,11 @@ The container writes `config.js` at start from environment variables
 window.__TRUSTYCA_RUNTIME_CONFIG__ = { API_URL: 'https://localhost:8880', LOGIN_RESPONSE_TYPE: 'code' }
 ```
 
-`index.html` loads it before the bundle; `RUNTIME_CONFIG` falls back to
-`environment.ts` and then to `https://localhost:8880`. No API URL is baked
-into the build.
+`index.html` loads it before the bundle; the committed `public/config.js`
+assigns an empty object. `RUNTIME_CONFIG` falls back to the Angular
+environment (`environment.development.ts` for `npm start`: bearer on
+`https://localhost:8880`; `environment.cookie.ts` for `npm run start:cookie`;
+none in production) and then to `https://localhost:8880` in bearer mode.
 
 ## 13. Project layout
 
@@ -600,16 +638,21 @@ Documentation/           DESIGN.md, PLAN.md
 public/                  brand, favicon, config.js (dev default)
 src/
   app/
-    core/                api/ (providers, tokens, errors, resources), auth/ (guards, AuthStore), tenant/ (TenantStore)
+    core/                api/ (providers, ca-providers, tokens, errors, paged resource), auth/ (guards, AuthStore), tenant/ (TenantStore)
     layout/              console shell
-    features/            login, auth, dashboard, issuers, roots, profiles, certificates, revocation, lookup, org, account, settings
+    features/            login, auth, ca (lazy routes of the CA pages), dashboard, issuers, roots, profiles,
+                         certificates, revocation, lookup, org, account, settings
+    testing/             fakes of the services for the specs
     shared/              components, pipes, forms, theme tokens
   libts/                 framework-free utilities (from secdi, trimmed)
   models/, types/        Token, UserInfo, I* interfaces
   services/
     AppPlatform/, AppUser/, storage/, runtimeConfig.ts
     trustyca/protogen/   generated
-    trustyca/rpc/        AuthService, OrgsService, CaService, CisService, StatusService, enums.ts (generated)
+    trustyca/rpc/        AuthService, OrgsService, CaService, CisService, StatusService, enums.ts (generated),
+                         testing/fake-transport.ts
+    trustyca/transport.ts  gRPC-Web transport, auth and device interceptors
+  environments/          build-time fallback of the runtime configuration
 ```
 
 TypeScript resolves `src/...` imports through `paths` in `tsconfig.json`,
@@ -618,15 +661,17 @@ which the copied folders already use.
 ## 14. Testing
 
 - **Unit (Vitest, jsdom, `ng test`)**: `libts`, `models`, `AppUser`,
-  `StorageService`, every rpc service with the generated client mocked
-  (`vi.mock('…/protogen/ca.client')`, the `secdi` pattern), error mapping,
-  guards and stores with fake services, pipes.
+  `StorageService`, every rpc service running its generated client against
+  `rpc/testing/fake-transport.ts` (Angular's unit-test builder bundles the
+  specs and refuses `vi.mock` of project files, so the `secdi` pattern does
+  not apply), error mapping, guards and stores with the fakes of
+  `src/app/testing/test-api.ts`, pipes.
 - **Component**: pages with `TestBed` and fake `I*Service` providers;
   router harness tests as in `app.spec.ts` for the auth redirects and the
   org and project switching.
-- **Contract**: a smoke test that instantiates every generated client
-  against a fake transport, so a proto regeneration that renames a method
-  fails the build, not the user.
+- **Contract**: the service specs reach every method through the generated
+  clients and the fake transport, so a proto regeneration that renames a
+  method fails a spec, not the user.
 - **End to end (later)**: Playwright against a dev `trustycasvc` with the
   `local` provider, covering login, org selection, register issuer, issue
   and revoke a certificate, publish a CRL.
@@ -671,7 +716,7 @@ which the copied folders already use.
 | ---- | ---------------------------------------------------------------------------------------------------------- | ------------------- |
 | BE-0 | Done in `trustyca` commit `0c02438`: the `wfe` CORS allows `http://localhost:4200`, the gRPC-Web and console headers, and exposes the gRPC trailers; deployed origins are added per environment | done |
 | BE-1 | Done in `trustyca` commits `1cd22a8` and `0c02438` ("Refactor Backend service"): `pb.CA` on the `wfe` for tenant tokens, every call forwarded to `privpb.Backend` with the org of the token | done |
-| BE-2 | REST `SelectOrg` that re-sets the session cookie (the commented `PathForAuthTenant` handler), for cookie mode org switching | cookie mode |
+| BE-2 | Done in `trustyca` commit `c28383e`: `POST /v1/auth/org` selects the org of a cookie session and re-sets both cookies | done |
 | BE-3 | `Orgs.ListEvents{ProjectID?, Type?, Limit, Cursor}` returning `EventsResponse` (the messages exist) | dashboard activity, audit tab |
 | BE-4 | A tenant summary RPC: issuers by status, certificates by status and expiry bucket, CRLs due, for the org or a project | exact dashboard tiles |
 | BE-5 | `ProjectID` on `UpdateIssuerRequest`, `ActivateIssuerRequest`, `DeleteProfileRequest` (ROADMAP RM-004), so a project Admin can act on its rows | project-scoped admins |

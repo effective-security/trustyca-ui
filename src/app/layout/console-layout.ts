@@ -1,5 +1,13 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  resource,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -8,7 +16,11 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
-import { PreviewSession } from '../core/auth/preview-session';
+import { log } from 'src/libts/logging';
+import { getRoleDisplayName } from 'src/services/trustyca/rpc/enums';
+import { RUNTIME_CONFIG, STATUS_SERVICE } from '../core/api/tokens';
+import { AuthStore } from '../core/auth/auth.store';
+import { safeReturnUrl } from '../core/auth/return-url';
 import { Brand } from '../shared/brand/brand';
 import { Icon, IconName } from '../shared/icon/icon';
 
@@ -32,7 +44,9 @@ import { Icon, IconName } from '../shared/icon/icon';
 })
 export class ConsoleLayout {
   private readonly router = inject(Router);
-  private readonly session = inject(PreviewSession);
+  private readonly status = inject(STATUS_SERVICE);
+  protected readonly session = inject(AuthStore);
+  protected readonly appVersion = inject(RUNTIME_CONFIG).appVersion;
   protected readonly navOpen = signal(false);
   protected readonly isMobile = toSignal(
     inject(BreakpointObserver)
@@ -57,8 +71,36 @@ export class ConsoleLayout {
     { label: 'Certificates', path: '/certificates', icon: 'certificate' },
   ];
 
-  protected logout(): void {
-    this.session.logout();
-    void this.router.navigate(['/login'], { replaceUrl: true });
+  /** The first live call: the build of the server, for the footer */
+  protected readonly serverVersion = resource({ loader: () => this.status.version() });
+
+  protected readonly orgName = computed(() => {
+    const org = this.session.org();
+    return org ? org.Name || org.Alias : 'Organization';
+  });
+  protected readonly orgInitial = computed(() => this.orgName().charAt(0).toUpperCase() || 'T');
+  protected readonly roleLabel = computed(() => {
+    const role = this.session.orgRole();
+    return role ? getRoleDisplayName(role) : '';
+  });
+  protected readonly provider = computed(() => this.session.token().Provider || '');
+  /** The login URL that brings the user back to this page */
+  protected readonly signInAgain = computed(() => ({
+    returnUrl: safeReturnUrl(this.currentPath()) || undefined,
+  }));
+
+  constructor() {
+    // the caller scope and the org follow the org of the session
+    effect(() => {
+      if (this.session.orgId()) {
+        this.session
+          .loadSession()
+          .catch((err: unknown) => log.error('ConsoleLayout: loadSession', err));
+      }
+    });
+  }
+
+  protected signOut(): void {
+    void this.session.signOut();
   }
 }

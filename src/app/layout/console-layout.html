@@ -20,10 +20,17 @@
       >
         <app-brand [inverse]="true" />
       </a>
-      <div class="workspace-label">
-        <span class="workspace-symbol">T</span>
-        <div>Local workspace<small>Trusty CA console</small></div>
-      </div>
+      <a
+        class="workspace-label"
+        routerLink="/auth/select-org"
+        title="Switch organization"
+        (click)="navOpen.set(false)"
+      >
+        <span class="workspace-symbol">{{ orgInitial() }}</span>
+        <div>
+          {{ orgName() }}<small>{{ roleLabel() || 'Trusty CA console' }}</small>
+        </div>
+      </a>
       <p class="nav-label">Workspace</p>
       <nav aria-label="Primary">
         @for (item of navigation; track item.path) {
@@ -43,7 +50,7 @@
           <p>A foundation for<br /><strong>every chain of trust.</strong></p>
         </div>
         <div class="sidebar-version">
-          <span class="status-dot"></span> Local preview <span class="version">v0.1</span>
+          <span class="status-dot"></span> Console <span class="version">v{{ appVersion }}</span>
         </div>
       </div>
     </div>
@@ -65,8 +72,12 @@
         ><strong>{{ section() }}</strong>
       </div>
       <span class="toolbar-spacer"></span>
-      <span class="preview-badge"><span class="status-dot"></span> Preview</span>
-      <span class="toolbar-divider"></span>
+      @if (roleLabel()) {
+        <span class="preview-badge" title="Your role in this organization"
+          ><span class="status-dot"></span> {{ roleLabel() }}</span
+        >
+        <span class="toolbar-divider"></span>
+      }
       <button
         mat-button
         class="profile-button"
@@ -75,29 +86,58 @@
       >
         <span class="profile-content"
           ><span class="avatar"><app-icon name="user" /></span>
-          <span class="profile-label">Preview user<small>Local workspace</small></span
+          <span class="profile-label"
+            >{{ session.profile().Name }}<small>{{ session.profile().Email }}</small></span
           ><app-icon name="chevron"
         /></span>
       </button>
       <mat-menu #profileMenu="matMenu" xPosition="before">
+        <div class="menu-identity">
+          <strong>{{ session.profile().Name }}</strong>
+          <span>{{ session.profile().Email }}</span>
+          @if (provider()) {
+            <small>Signed in with {{ provider() }}</small>
+          }
+        </div>
+        <mat-divider />
         <button mat-menu-item routerLink="/account">
           <app-icon class="menu-icon" name="user" />Account
         </button>
         <button mat-menu-item routerLink="/settings">
           <app-icon class="menu-icon" name="settings" />Settings
         </button>
+        <button mat-menu-item routerLink="/auth/select-org">
+          <app-icon class="menu-icon" name="layers" />Switch organization
+        </button>
         <mat-divider />
-        <button mat-menu-item (click)="logout()">
-          <app-icon class="menu-icon" name="logout" />Logout
+        <button mat-menu-item (click)="signOut()">
+          <app-icon class="menu-icon" name="logout" />Sign out
         </button>
       </mat-menu>
     </mat-toolbar>
+
+    @if (session.sessionExpired()) {
+      <div class="session-bar" role="alert">
+        <app-icon name="lock" />
+        <span>Your session has expired.</span>
+        <a mat-button routerLink="/login" [queryParams]="signInAgain()">Sign in again</a>
+      </div>
+    }
 
     <div class="content-frame">
       <main id="main-content" tabindex="-1"><router-outlet /></main>
       <footer class="console-footer">
         <span>Trusty CA <span class="footer-separator">/</span> Certification authority</span>
-        <span><app-icon name="lock" /> Local preview workspace</span>
+        <span class="server-version"
+          ><app-icon name="lock" />
+          @if (serverVersion.hasValue()) {
+            Server {{ serverVersion.value().Build }}
+          } @else if (serverVersion.error()) {
+            Server unreachable
+          } @else {
+            Connecting…
+          }
+        </span>
       </footer>
     </div>
   </mat-sidenav-content>
