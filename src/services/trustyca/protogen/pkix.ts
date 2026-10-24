@@ -937,13 +937,16 @@ export interface KeySpec {
 /**
  * IssuerConfig provides runtime settings of an issuer.
  * The shape matches the `issuers[].aia` section of ca-config files.
+ * The URL templates name the issuer with `:ISSUER_ID`, which is replaced
+ * with the issuer's SKID. The API also accepts `${ISSUER_ID}`; a ca-config
+ * file cannot use it, since its loader expands `${...}` as an environment
+ * variable, and the bootstrap refuses such a file.
  *
  * @generated from protobuf message pb.IssuerConfig
  */
 export interface IssuerConfig {
     /**
-     * AiaURL specifies a template for the AIA Issuer URL.
-     * The ${ISSUER_ID} variable is replaced with the issuer's SKID.
+     * AiaURL specifies a template for the AIA Issuer URL
      *
      * @generated from protobuf field: string AiaURL = 1
      */

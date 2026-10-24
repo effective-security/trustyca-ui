@@ -15,7 +15,7 @@ import { PageHeading } from '../../shared/page-heading/page-heading';
           <h2 id="settings-title">Console preferences</h2>
           <p>A foundation for your workspace configuration.</p>
         </div>
-        <span class="subtle-tag">Preview</span>
+        <span class="subtle-tag">Coming soon</span>
       </header>
       <app-empty-state
         icon="settings"

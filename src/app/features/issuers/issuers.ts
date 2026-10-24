@@ -15,7 +15,7 @@ import { PageHeading } from '../../shared/page-heading/page-heading';
           <h2 id="issuers-title">Certificate issuers</h2>
           <p>Your root and intermediate signing authorities.</p>
         </div>
-        <span class="subtle-tag">Preview</span>
+        <span class="subtle-tag">Coming soon</span>
       </header>
       <app-empty-state
         icon="layers"

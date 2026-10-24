@@ -20,10 +20,12 @@
     <span class="metric-detail">Awaiting connection</span></a
   >
   <div class="metric-card environment-card">
-    <div class="metric-title"><span>Workspace</span><app-icon name="shield" /></div>
-    <div class="metric-value environment-value"><span class="status-dot"></span> Local preview</div>
-    <p>Your console is ready to explore</p>
-    <span class="metric-detail">Interface preview</span>
+    <div class="metric-title"><span>Organization</span><app-icon name="shield" /></div>
+    <div class="metric-value environment-value">
+      <span class="status-dot"></span> {{ session.org()?.Name || 'Signed in' }}
+    </div>
+    <p>{{ session.profile().Email }}</p>
+    <span class="metric-detail">{{ roleLabel() || 'Member' }}</span>
   </div>
 </section>
 

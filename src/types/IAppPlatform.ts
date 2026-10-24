@@ -30,4 +30,20 @@ export interface IAppPlatform extends IPlatformInfo {
    * @param url
    */
   openUrl(url: string): void;
+
+  /**
+   * Navigates the window to a URL outside the app, as the login does to
+   * the authorize endpoint of the server
+   *
+   * @param url
+   */
+  redirect(url: string): void;
+
+  /**
+   * Replaces the address of the current history entry without a
+   * navigation, as the auth landing does to drop the one-time code
+   *
+   * @param url
+   */
+  replaceHistoryUrl(url: string): void;
 }

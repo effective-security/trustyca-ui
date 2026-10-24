@@ -18,7 +18,7 @@ import { PageHeading } from '../../shared/page-heading/page-heading';
           <h2 id="certificates-title">Certificate inventory</h2>
           <p>Visibility across your certificate lifecycle.</p>
         </div>
-        <span class="subtle-tag">Preview</span>
+        <span class="subtle-tag">Coming soon</span>
       </header>
       <app-empty-state
         icon="certificate"
