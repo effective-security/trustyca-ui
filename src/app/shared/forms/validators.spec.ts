@@ -54,4 +54,17 @@ describe('validators', () => {
       pem: { reason: 'multiple', expected: undefined },
     });
   });
+
+  it('pem accepts a block type by its ending, for a private key of any flavour', () => {
+    const key = pem({ typeSuffix: 'PRIVATE KEY' });
+    const EC = '-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIA\n-----END EC PRIVATE KEY-----';
+    const PKCS8 = '-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMG\n-----END PRIVATE KEY-----';
+    expect(run(key, EC)).toBeNull();
+    expect(run(key, PKCS8)).toBeNull();
+    expect(run(key, CERT)).toEqual({ pem: { reason: 'type', expected: 'PRIVATE KEY' } });
+    expect(run(key, 'nope')).toEqual({ pem: { reason: 'missing', expected: 'PRIVATE KEY' } });
+    expect(run(key, `${EC}\n${PKCS8}`)).toEqual({
+      pem: { reason: 'multiple', expected: 'PRIVATE KEY' },
+    });
+  });
 });

@@ -1,0 +1,172 @@
+:host {
+  display: block;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+.back-link app-icon {
+  width: 14px;
+  height: 14px;
+}
+.back-link:hover {
+  color: var(--ink);
+}
+.stepper-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+app-stepper {
+  padding: 20px 12px;
+  border-right: 1px solid var(--border);
+  background: #fcfdf9;
+}
+.step-panel {
+  padding: 20px 28px 28px;
+  min-width: 0;
+}
+.step-form {
+  display: grid;
+  gap: 6px;
+  max-width: 720px;
+}
+.step-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.step-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.step-title-row .step-title {
+  margin-bottom: 0;
+}
+.step-title-row {
+  margin-bottom: 12px;
+}
+.copy-config app-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+}
+.step-form .wide {
+  width: 100%;
+}
+.step-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.step-error {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #8a2f29;
+}
+.step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+}
+.field-row.three {
+  grid-template-columns: 110px repeat(2, minmax(0, 1fr));
+}
+.type-options {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.type-option {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px 8px 2px;
+}
+.type-option strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 550;
+}
+.type-option span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.option-sub {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.review app-kv-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.config-details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.config-details summary {
+  padding: 12px 24px;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.problems {
+  margin: 8px 0 0;
+  padding: 12px 14px 12px 30px;
+  border-radius: 8px;
+  border: 1px solid #ecc9c6;
+  background: #fbeeec;
+  color: #8a2f29;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.result-panel .panel-body {
+  display: grid;
+  gap: 16px;
+  padding: 20px 24px 24px;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.form-actions app-icon {
+  width: 15px;
+  height: 15px;
+  margin-right: 8px;
+}
+@media (max-width: 800px) {
+  .stepper-layout {
+    grid-template-columns: 1fr;
+  }
+  app-stepper {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 12px;
+  }
+  .step-panel {
+    padding: 18px;
+  }
+}
+@media (max-width: 700px) {
+  .field-row,
+  .field-row.three {
+    grid-template-columns: 1fr;
+  }
+}

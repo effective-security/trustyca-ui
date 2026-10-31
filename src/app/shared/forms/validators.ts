@@ -51,6 +51,8 @@ export function oid(): ValidatorFn {
 export interface PemOptions {
   /** The block type every block must have, 'CERTIFICATE'; any when omitted */
   readonly type?: string;
+  /** The ending every block type must have, 'PRIVATE KEY' for a key of any flavour */
+  readonly typeSuffix?: string;
   /** True when more than one block is accepted (a chain) */
   readonly multiple?: boolean;
 }
@@ -67,14 +69,19 @@ export function pem(options: PemOptions = {}): ValidatorFn {
       return null;
     }
     const blocks = parsePemBlocks(v);
+    const expected = options.type ?? options.typeSuffix;
     if (blocks.length === 0) {
-      return { pem: { reason: 'missing', expected: options.type } };
+      return { pem: { reason: 'missing', expected } };
     }
     if (options.type && blocks.some((b) => b.type !== options.type)) {
-      return { pem: { reason: 'type', expected: options.type } };
+      return { pem: { reason: 'type', expected } };
+    }
+    const suffix = options.typeSuffix;
+    if (suffix && blocks.some((b) => !b.type.endsWith(suffix))) {
+      return { pem: { reason: 'type', expected } };
     }
     if (!options.multiple && blocks.length > 1) {
-      return { pem: { reason: 'multiple', expected: options.type } };
+      return { pem: { reason: 'multiple', expected } };
     }
     return null;
   };

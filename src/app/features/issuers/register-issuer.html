@@ -1,0 +1,402 @@
+<a class="back-link" routerLink="/issuers"><app-icon name="arrowLeft" />All issuers</a>
+<app-page-heading
+  eyebrow="Issuers"
+  title="Register issuer"
+  description="A new certification authority of the organization: its key is generated in the crypto provider and never leaves it."
+/>
+
+@if (pending(); as issuer) {
+  <section class="panel result-panel" aria-labelledby="result-title">
+    <header class="panel-header">
+      <div>
+        <h2 id="result-title">{{ issuer.Label }} is waiting for its certificate</h2>
+        <p>
+          The key was generated. Hand the signing request below to the external authority, then
+          activate the issuer with the certificate it returns and its chain.
+        </p>
+      </div>
+      <app-status-chip label="Pending" [tone]="statusTone(issuer.Status)" />
+    </header>
+    <div class="panel-body">
+      <app-pem-viewer
+        [pem]="issuer.Csr"
+        title="Signing request"
+        [fileName]="issuer.Label + '.csr'"
+        class="csr-viewer"
+      />
+      <div class="form-actions">
+        <a mat-button [routerLink]="['/issuers', issuer.ID]" class="open-issuer">Open issuer</a>
+        <button mat-flat-button type="button" class="activate-now" (click)="activate()">
+          <app-icon name="bolt" />Activate now
+        </button>
+      </div>
+    </div>
+  </section>
+} @else {
+  <section class="panel stepper-layout" aria-label="Register issuer steps">
+    <app-stepper
+      [steps]="stepper.steps"
+      [selectedIndex]="stepper.selectedIndex()"
+      (stepSelect)="stepper.select($event)"
+    />
+    <div class="step-panel">
+      @switch (stepper.selectedIndex()) {
+        @case (0) {
+          <form [formGroup]="scopeForm" class="step-form" (ngSubmit)="next()">
+            <h2 class="step-title">Scope and label</h2>
+            <p class="step-note">
+              An org-wide issuer is inherited by every project; a project issuer signs for that
+              project only. The label identifies the issuer in the API and the CLI.
+            </p>
+            <mat-form-field appearance="outline">
+              <mat-label>Scope</mat-label>
+              <mat-select formControlName="projectId" class="scope-select">
+                @if (tenant.hasOrgWideRole()) {
+                  <mat-option value="">Org-wide</mat-option>
+                }
+                @for (p of tenant.selectableProjects(); track p.ID) {
+                  <mat-option [value]="p.ID">{{ p.Name || p.Alias }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Label</mat-label>
+              <input
+                matInput
+                formControlName="label"
+                required
+                maxlength="64"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="issuing"
+              />
+              <mat-hint>Unique in its scope; no spaces.</mat-hint>
+              @if (scopeForm.controls.label.hasError('required')) {
+                <mat-error>A label is required.</mat-error>
+              } @else if (scopeForm.controls.label.hasError('pattern')) {
+                <mat-error>A label has no spaces.</mat-error>
+              }
+            </mat-form-field>
+            <div class="step-actions">
+              <button mat-flat-button type="submit" class="step-next">Next</button>
+            </div>
+          </form>
+        }
+        @case (1) {
+          <form [formGroup]="typeForm" class="step-form" (ngSubmit)="next()">
+            <h2 class="step-title">Type</h2>
+            <mat-radio-group
+              formControlName="type"
+              class="type-options"
+              aria-label="Authority type"
+            >
+              @for (t of types; track t.value) {
+                <mat-radio-button [value]="t.value" class="type-option">
+                  <strong>{{ t.label }}</strong>
+                  <span>{{ t.description }}</span>
+                </mat-radio-button>
+              }
+            </mat-radio-group>
+            <div class="step-actions">
+              <button mat-button type="button" class="step-back" (click)="back()">Back</button>
+              <button mat-flat-button type="submit" class="step-next">Next</button>
+            </div>
+          </form>
+        }
+        @case (2) {
+          <form [formGroup]="subjectForm" class="step-form" (ngSubmit)="next()">
+            <h2 class="step-title">Subject</h2>
+            <p class="step-note">
+              The distinguished name of the issuer certificate. A common name or at least one name
+              field is required.
+            </p>
+            <mat-form-field appearance="outline" class="wide">
+              <mat-label>Common name</mat-label>
+              <input
+                matInput
+                formControlName="CommonName"
+                maxlength="64"
+                autocomplete="off"
+                placeholder="Acme Issuing CA"
+              />
+            </mat-form-field>
+            <div class="field-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Organization</mat-label>
+                <input matInput formControlName="Organisation" maxlength="64" autocomplete="off" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Organizational unit</mat-label>
+                <input
+                  matInput
+                  formControlName="OrganisationalUnit"
+                  maxlength="64"
+                  autocomplete="off"
+                />
+              </mat-form-field>
+            </div>
+            <div class="field-row three">
+              <mat-form-field appearance="outline">
+                <mat-label>Country</mat-label>
+                <input
+                  matInput
+                  formControlName="Country"
+                  maxlength="2"
+                  autocomplete="off"
+                  placeholder="US"
+                />
+                @if (subjectForm.controls.Country.hasError('pattern')) {
+                  <mat-error>Two letters.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>State or province</mat-label>
+                <input matInput formControlName="State" maxlength="128" autocomplete="off" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Locality</mat-label>
+                <input matInput formControlName="Locality" maxlength="128" autocomplete="off" />
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Serial number (subject attribute)</mat-label>
+              <input matInput formControlName="SerialNumber" maxlength="64" autocomplete="off" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wide">
+              <mat-label>Subject alternative names</mat-label>
+              <textarea
+                matInput
+                formControlName="san"
+                rows="2"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="ca.example.com"
+              ></textarea>
+              <mat-hint
+                >Optional, one per line: DNS names, email addresses, URIs or IP addresses.</mat-hint
+              >
+            </mat-form-field>
+            @if (subjectForm.hasError('subject') && subjectForm.touched) {
+              <p class="step-error" role="alert">Enter a common name or at least one name field.</p>
+            }
+            <div class="step-actions">
+              <button mat-button type="button" class="step-back" (click)="back()">Back</button>
+              <button mat-flat-button type="submit" class="step-next">Next</button>
+            </div>
+          </form>
+        }
+        @case (3) {
+          <form [formGroup]="keyForm" class="step-form" (ngSubmit)="next()">
+            <h2 class="step-title">Key</h2>
+            <p class="step-note">
+              The key is generated in the crypto provider of the server. ECDSA P-256 is the default.
+            </p>
+            <div class="field-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Algorithm</mat-label>
+                <mat-select formControlName="keyAlgo" class="algo-select">
+                  @for (a of algos; track a) {
+                    <mat-option [value]="a">{{ a }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Size</mat-label>
+                <mat-select formControlName="keySize" class="size-select">
+                  @for (s of keySizes(); track s) {
+                    <mat-option [value]="s">{{ keyLabel(keyAlgo(), s) }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Key provider</mat-label>
+              <input
+                matInput
+                formControlName="keyProvider"
+                maxlength="64"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <mat-hint
+                >Optional: a provider of the server (a manufacturer, or manufacturer/model); empty
+                for its default.</mat-hint
+              >
+            </mat-form-field>
+            <div class="step-actions">
+              <button mat-button type="button" class="step-back" (click)="back()">Back</button>
+              <button mat-flat-button type="submit" class="step-next">Next</button>
+            </div>
+          </form>
+        }
+        @case (4) {
+          <form [formGroup]="signingForm" class="step-form" (ngSubmit)="next()">
+            <h2 class="step-title">Signing</h2>
+            @if (isRoot()) {
+              <p class="step-note root-note">
+                A Root signs its own certificate, with a CA profile of the scope that sets the key
+                usages and the path length.
+              </p>
+            } @else {
+              <mat-radio-group
+                formControlName="signing"
+                class="type-options"
+                aria-label="How the certificate is signed"
+              >
+                <mat-radio-button value="parent" class="type-option">
+                  <strong>An issuer of this organization</strong>
+                  <span
+                    >An Active root or intermediate visible from the scope signs the
+                    certificate.</span
+                  >
+                </mat-radio-button>
+                <mat-radio-button value="platform" class="type-option">
+                  <strong>A platform issuer</strong>
+                  <span>
+                    The intermediate of the platform signs the certificate with a CA profile it
+                    allows. Enter the issuer ID the operator gave you.
+                  </span>
+                </mat-radio-button>
+                <mat-radio-button value="external" class="type-option">
+                  <strong>Outside the CA</strong>
+                  <span>
+                    The issuer is created Pending with a signing request; activate it with the
+                    signed certificate.
+                  </span>
+                </mat-radio-button>
+              </mat-radio-group>
+            }
+            @if (signing() === 'parent' && !isRoot()) {
+              <mat-form-field appearance="outline" class="wide">
+                <mat-label>Parent issuer</mat-label>
+                <mat-select formControlName="parentId" class="parent-select">
+                  @for (p of parentOptions(); track p.ID) {
+                    <mat-option [value]="p.ID"
+                      >{{ p.Label }}<small class="option-sub">{{ p.Subject }}</small></mat-option
+                    >
+                  } @empty {
+                    <mat-option value="" disabled>{{
+                      parents.isLoading()
+                        ? 'Loading the issuers…'
+                        : 'No Active issuer in this scope: use a platform issuer or sign outside the CA'
+                    }}</mat-option>
+                  }
+                </mat-select>
+                @if (signingForm.controls.parentId.hasError('required')) {
+                  <mat-error>Choose the parent issuer.</mat-error>
+                }
+              </mat-form-field>
+            }
+            @if (signing() === 'platform' && !isRoot()) {
+              <mat-form-field appearance="outline" class="wide">
+                <mat-label>Platform issuer ID</mat-label>
+                <input
+                  matInput
+                  formControlName="platformParentId"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <mat-hint
+                  >The ID of a platform issuer whose configuration allows the CA profile.</mat-hint
+                >
+                @if (signingForm.controls.platformParentId.hasError('required')) {
+                  <mat-error>Enter the ID of the platform issuer.</mat-error>
+                }
+              </mat-form-field>
+            }
+            @if (signing() !== 'external') {
+              <mat-form-field appearance="outline">
+                <mat-label>CA profile</mat-label>
+                <input
+                  matInput
+                  formControlName="profile"
+                  maxlength="64"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="tenant_ca"
+                />
+                <mat-hint
+                  >The profile the signer uses for the issuer certificate; it must be a CA
+                  profile.</mat-hint
+                >
+                @if (signingForm.controls.profile.hasError('required')) {
+                  <mat-error>The CA profile is required.</mat-error>
+                }
+              </mat-form-field>
+            }
+            <div class="step-actions">
+              <button mat-button type="button" class="step-back" (click)="back()">Back</button>
+              <button mat-flat-button type="submit" class="step-next">Next</button>
+            </div>
+          </form>
+        }
+        @case (5) {
+          <form [formGroup]="configForm" class="step-form" (ngSubmit)="next()">
+            <div class="step-title-row">
+              <h2 class="step-title">Configuration</h2>
+              @if (selectedParent()) {
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="copy-config"
+                  (click)="copyParentConfig()"
+                >
+                  <app-icon name="copy" />Copy from {{ selectedParent()?.Label }}
+                </button>
+              }
+            </div>
+            <app-issuer-config-form [form]="configForm" />
+            <div class="step-actions">
+              <button mat-button type="button" class="step-back" (click)="back()">Back</button>
+              <button mat-flat-button type="submit" class="step-next">Review</button>
+            </div>
+          </form>
+        }
+        @case (6) {
+          <div class="step-form review">
+            <h2 class="step-title">Review</h2>
+            <app-kv-list [items]="summary()" [wide]="true" />
+            <details class="config-details">
+              <summary>Runtime settings</summary>
+              <app-kv-list [items]="configSummary()" [wide]="true" />
+            </details>
+            @if (problems().length > 0) {
+              <ul class="problems" role="alert">
+                @for (p of problems(); track p) {
+                  <li>{{ p }}</li>
+                }
+              </ul>
+            }
+            <app-request-error [error]="op.error()" context="Could not register the issuer" />
+            @if (op.busy()) {
+              <mat-progress-bar mode="indeterminate" aria-label="Registering" />
+              <p class="step-note">
+                Generating the key and signing the certificate may take a few seconds.
+              </p>
+            }
+            <div class="step-actions">
+              <button
+                mat-button
+                type="button"
+                class="step-back"
+                [disabled]="op.busy()"
+                (click)="back()"
+              >
+                Back
+              </button>
+              <button
+                mat-flat-button
+                type="button"
+                class="register-button"
+                [disabled]="op.busy() || problems().length > 0"
+                (click)="register()"
+              >
+                {{ op.busy() ? 'Registering…' : 'Register issuer' }}
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </section>
+}

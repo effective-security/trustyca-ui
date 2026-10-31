@@ -1,6 +1,6 @@
 # Trusty CA Console Execution Plan
 
-Status: in progress, phases 0 to 3 done. The design is in [DESIGN.md](DESIGN.md); the backend it
+Status: in progress, phases 0 to 4 done. The design is in [DESIGN.md](DESIGN.md); the backend it
 targets is `../trustyca` (its `Documentation/design/DESIGN.md`,
 `Documentation/PLAN.md` and `ROADMAP.md`). Phases are ordered by
 dependency; each one ends with a working, tested console that is a strict
@@ -59,6 +59,52 @@ page, reload, remember me, and the cookie session on
 README.md); and, for phase 3, the org switcher, the project selector and
 the Organization page in the browser.
 
+Phase 4 is done (2026-10-31, uncommitted on `dissoupov` on top of
+`30f0ec1`): the Issuers list (`ListIssuers` with the status and type filters,
+the project selection, cursor paging, the labels remembered in the
+`TenantStore` by the SKID of the issuer, the IKID its certificates carry), the issuer page (`/issuers/:id` with the Overview, Chain,
+Profiles and Configuration tabs; Activate for a Pending issuer, Archive for an
+Active one, Destroy for an Archived one, the consequences spelled out and the
+label typed before a Destroy), the Register issuer stepper (scope and label,
+type, subject and SAN, key, signing, configuration, review; a Pending issuer
+ends on its signing request with "Activate now"), the Import issuer form
+(key URI or key PEM, the PEM sent once and cleared), the Trust anchors page
+(`ListRoots`, `CIS.GetRoots`, `RegisterRoot`) and the shared CA state of
+DESIGN.md §2.1: `app-ca-unavailable` on `CaUnavailableError`,
+`app-request-error` next to a form (a conflict as a notice with the server's
+text), `Operation` for the busy state of the key operations, `app-pem-input`
+(paste, file or drop), `app-pem-dialog` and `app-stepper`. `npm run
+typecheck`, `npm run lint`, `npm run format`, `npm test` (225 tests, from
+190) and `npm run build` pass; the initial bundle is 480 kB (see "Decisions
+and notes" on the stepper).
+
+Phase 4 verification ran against the dev `trustycasvc` (`v0.1.23`,
+all-in-one, key provider `AWSKMS`) on 2026-10-31 with the framework-free
+services from Node, the way the earlier phases did: the `local` sign-in,
+`GetCallerScope` (every `pb.CA` method allowed to the Owner),
+`ListIssuers{Limit: 25, Cursor: "initial"}` and the Active filter (both
+empty: the dev org is not bootstrapped), `ListRoots` (empty),
+`CIS.GetRoots{OrgID: ""}` (the platform root `CN=Test Trusty Root CA`),
+`ListProfiles` (empty), then the shapes of the stepper: `RegisterIssuer`
+without a parent (Pending, with its CSR and SKID), the CSR signed as a CA by
+an `openssl` root, `ActivateIssuer{Certificate, Root}` (Active, the IKID of
+the root, the chain stored), `GetIssuer`, `UpdateIssuer{Config}` (CRL expiry
+72h, one allowed profile), `RegisterProfile` of a CA profile bound to the new
+issuer, `RegisterIssuer{ParentID, Profile}` (an Active subordinate with one
+intermediate), `UpdateIssuer{Status: Archived}`, Archived to Active refused
+with `FAILED_PRECONDITION` ("issuer status Archived cannot change to
+Active"), `UpdateIssuer{Status: Destroyed}`, `RegisterRoot{Pem, Trust:
+Private}` of the `openssl` root, `ListRoots` and `ListIssuers` with the
+Destroyed and Issuing filters, `RevokeToken` and `UNAUTHENTICATED` on the next
+call. The dev database keeps the smoke rows: the Active issuer
+`console-ext-mvwnnpjb` with its CA profile `console-ca-mvwnnpjb`, the
+Destroyed `console-sub-mvwnnpjb` and the anchor `CN=Console Live Root
+mvwnnpjb`. Not exercised: a platform parent (BE-10: the dev org has no
+bootstrapped issuing CA, and `trustycactl ca org bootstrap` is an operator
+action), `ImportIssuer` with a key, and a project Admin. Still to do by hand
+in a browser: the list and its filters, the issuer page and its tabs, the
+stepper, the import form, the Activate dialog and the trust anchors.
+
 Phase 3 verification ran against the dev `trustycasvc` (`v0.1.23`,
 all-in-one) on 2026-10-31 with the framework-free services from Node, the
 way phases 1 and 2 did: the `local` sign-in, `GetUserOrgs`,
@@ -92,6 +138,7 @@ need.
 | BE-7 | Done (verified in `trustyca` on 2026-10-30, no change): `timeout.request` is porto's shutdown drain timeout, not a per-request deadline, and the listeners set no write deadline; a gRPC-Web call is served by the gRPC server, which takes the `grpc-timeout` of the console as the deadline the `ca` proxy forwards, so the 60 s deadline of the key operations is the only bound (`trustyca` codemap, `server/service/ca`) | done | nothing |
 | BE-8 | Done (`0c02438`, ROADMAP RM-006): `OrgID` dropped from the public `pb.CA` requests; the stubs are regenerated | done | nothing |
 | BE-9 | Done (`0c02438`): the `service CA` comment describes the tenant API on the `wfe` | done | nothing |
+| BE-10 | Open: a tenant cannot discover a platform issuer. `RegisterIssuerRequest.ParentID` is an ID, and `GetIssuer` and `ListIssuers` answer the org's rows only (`server/service/backend/issuer.go`, `parentIssuer`), so the "platform issuer" option of the Register stepper takes the ID an operator hands out. Wanted: a `ParentLabel` on `RegisterIssuerRequest` resolved in the platform scope, or a `CA.ListPlatformIssuers` (label, subject, allowed profiles) for the parent selector | S | the platform parent by label in the stepper (phase 4 follow-up) |
 
 The JSON route for `pb.CA` on the `wfe` that the backend plan lists as a
 follow-up "for the Web UI" is not needed by this console, which calls the
@@ -324,34 +371,90 @@ Goal: the CA side of the console starts. Needs the all-in-one dev process
 with the `backend` listener (every `pb.CA` call is forwarded there), BE-7
 verified, and BE-5 for project Admins.
 
-- [ ] Issuers list with filters and the issuer label cache in `TenantStore`.
-- [ ] Issuer details: Overview, Chain (PEM viewer, downloads), Profiles,
-      Configuration (`IssuerConfig` form, `UpdateIssuer{Config}`), actions
-      Archive and Destroy with confirmations that spell the consequences.
-- [ ] Register issuer stepper (`RegisterIssuer`): scope and label, type,
-      subject and SAN, key spec and provider, signing (self-signed, parent in
-      scope, platform parent by label with CA profile, external CSR),
-      configuration defaults, review; Pending result with the CSR.
-- [ ] Activate pending issuer (`ActivateIssuer`): paste or drop the signed
-      certificate, intermediates and root.
-- [ ] Import issuer (`ImportIssuer`) with the key URI or PEM, marked
-      sensitive.
-- [ ] Trust anchors page: org roots (`ListRoots`), platform roots
-      (`CIS.GetRoots`), `RegisterRoot`.
-- [ ] CA availability handling (DESIGN.md §2.1): the issuer pages show the
-      "CA service unavailable" state on `UNAVAILABLE`; register, import,
-      activate, archive and destroy carry the longer deadline with a progress
-      state and render a 409 conflict inline; the shared state component is
-      reused by every CA page in phases 5 to 9.
-- [ ] Tests: stepper validation (subject required, parent required unless
-      Root, CA profile required with a parent), request building per shape,
-      status transitions offered per status, forms with a fake `ICaService`,
-      the unavailable state on an `UNAVAILABLE` error.
+- [x] Issuers list (`features/issuers/issuers.ts`): `ListIssuers{ProjectID,
+      Status, Type, Limit, Cursor}` as a `pagedResource` keyed by the project
+      selection, the status and type filters and the page size; label with
+      the subject, type, status chip, scope, "valid until" with the expiry
+      hint, CRL number; row click to the issuer page; Register and Import
+      gated by `RegisterIssuer` and `ImportIssuer`; every page of issuers
+      feeds `TenantStore.rememberIssuerLabels()` by the SKID of the issuer,
+      the IKID the certificates it issues carry (BE-6 looks them up so).
+- [x] Issuer page (`/issuers/:id`, `IssuerPage` provided on the route: one
+      `GetIssuer` per ID and org, replaced by the answer of a change): header
+      with the label, the subject, the status, the scope and the key
+      provider; tabs Overview (identity and lifecycle, the parent linked),
+      Chain (PEM viewers for the certificate, the intermediates and the root,
+      a bundle download, the CSR while Pending), Profiles (the bound labels
+      and `Config.AllowedProfiles`, linking to `/profiles?label=`),
+      Configuration (`IssuerConfig` form, `UpdateIssuer{ID, Config,
+      ProjectID}` for an Admin, read-only otherwise, a conflict shown inline).
+      Actions by status, as the server transitions them: Activate (Pending),
+      Archive (Active; "stops signing, CRL and OCSP go on, no way back"),
+      Destroy (Archived; the label typed, "the key is destroyed, no CRL and
+      no OCSP"). A change names the issuer's own `ProjectID` (BE-5). The
+      Revocation tab comes with phase 7.
+- [x] Register issuer stepper (`register-issuer.ts`, `register-issuer.model.ts`
+      for the pure parts): scope (org-wide or a selectable project) and
+      label; type; subject (`X509Subject` fields, SAN one per line); key
+      (ECDSA P-256 default, P-384, RSA 2048 to 4096, the key provider);
+      signing (self-signed for a Root with its CA profile; a parent among
+      the Active issuers visible from the scope, read with
+      `ListIssuers{ProjectID: '', Status: Active, Limit: 200}` and filtered
+      to the org-wide ones and the project's; a platform issuer by the ID an
+      operator hands out, BE-10; or external, which creates a Pending
+      issuer); configuration (defaults copied from the parent until the form
+      is touched, "Copy from parent"); review (the summary, the problems of
+      `validateRegistration`, the server's refusal inline). One
+      `RegisterIssuer` with the longer deadline and a progress state; an
+      Active issuer opens its page, a Pending one shows its CSR with
+      "Activate now".
+- [x] Activate pending issuer (`activate-issuer-dialog.ts`, from the issuer
+      page and the stepper result): the certificate (required), the
+      intermediates and the root as `app-pem-input` (paste, file or drop);
+      `ActivateIssuer{ID, Certificate, Intermediates, Root, ProjectID}`; the
+      refusal stays in the dialog.
+- [x] Import issuer (`import-issuer.ts`): scope, label, type, certificate,
+      intermediates, root; the key as a provider URI or as PEM (a private
+      key block of any flavour), marked sensitive, sent once and cleared from
+      the form; the configuration; `ImportIssuer`.
+- [x] Trust anchors page (`features/roots`): the org roots
+      (`ListRoots{Limit: 50, Cursor}`) and the platform roots
+      (`CIS.GetRoots{OrgID: ''}`) in two tables: subject with SKID, trust,
+      valid until, SHA-256, view in `app-pem-dialog`, download `.pem`;
+      `RegisterRoot{Pem, Trust}` in a dialog for an Admin.
+- [x] CA availability handling (DESIGN.md §2.1): `app-ca-unavailable`
+      (`shared/ca-state`) replaces the table or the page on a
+      `CaUnavailableError`, with the server's text and Retry; the other
+      failures keep the generic states. `Operation` carries the busy state
+      of register, import, activate, archive, destroy and the configuration
+      save, and `app-request-error` renders the refusal next to the form, a
+      conflict (`FAILED_PRECONDITION`, `ABORTED`, `ALREADY_EXISTS`) as a
+      notice with the server's text. Phases 5 to 9 reuse the three.
+- [x] Tests (225, from 190): the registration model (signing modes per
+      type, subject required, parent required unless Root or external, the
+      CA profile with a signer, the request per shape), the configuration
+      model (round trip, labels, templates, durations), the pages with the
+      fakes of `test-api.ts` (`FakeCaService`, `FakeCisService` in
+      `testing/fake-ca.ts`): the list and its filters, the labels
+      remembered, the project selection, the Viewer, the unavailable state
+      and its retry; the issuer page, its tabs, Activate, Archive, Destroy
+      with the typed confirmation, the project of a project issuer, the
+      configuration save and a conflict inline, a Viewer, a missing issuer;
+      the stepper (a parent of the org with the parent's configuration, an
+      external signature and the CSR result, a self-signed Root with a
+      conflict, a project member and the parents of the project); the import
+      (key PEM sent once, key URI, the server's refusal); the trust anchors
+      (both lists, the PEM dialog, register, the refusal, the Viewer and the
+      unavailable state of the org roots alone).
 
 Verification: against the dev server with an org bootstrapped by
 `trustycactl ca org bootstrap`, list the issuing CA, register a subordinate
 Issuing CA under it, archive it; register an externally signed issuer and
-activate it with a certificate signed by `hsm-tool` or `openssl`.
+activate it with a certificate signed by `hsm-tool` or `openssl`. Ran from
+Node on 2026-10-31 (see "Where we are"): the external issuer signed by
+`openssl` and activated, a subordinate under it archived and destroyed, the
+root registered as an anchor; the dev org is not bootstrapped, so the
+platform parent waits for BE-10 and the browser pass is still to do.
 
 ## Phase 5: certificate profiles (M)
 
@@ -554,6 +657,39 @@ smoke suite passes against it.
   `contentChildren`, `model`) and the rxjs schedulers of the CDK table that
   the lazy chunks share with the initial one. Phase 10 decides between
   splitting `enums.ts` per enum in the generator and raising the budget.
+- Material's stepper is not used. `MatStepper` imports `MatIcon`, whose
+  registry imports `HttpClient`, and `@angular/platform-browser` then carries
+  `@angular/common/http` into the initial bundle (499 kB, 1 kB under the
+  warning) for icons the console draws itself. `shared/stepper` is a linear
+  stepper of a hundred lines: `StepperState` (Next marks the step's form
+  touched and stays while it is invalid, a passed step reopens from the
+  rail) and the rail `app-stepper`; the page renders the open step. The
+  initial bundle is 480 kB with it.
+- The CA pages are tested with `FakeCaService` and `FakeCisService`
+  (`src/app/testing/fake-ca.ts`, the issuers and the roots in memory with
+  the server's rules the pages rely on) provided at the root of the TestBed:
+  `provideCaApi()` reuses a service an injector above it already provides
+  (`inject(CA_SERVICE, { skipSelf: true, optional: true })`), so the fakes
+  reach the lazy CA routes and the route configuration stays the real one.
+  `TestBed.overrideProvider` was tried first: it does not reach the
+  environment injector the router creates for a route's `providers`.
+- A form dialog refuses Escape and a click outside while its request is in
+  flight (`disableClose` follows `Operation.busy`), so a key operation the
+  server completed is not lost to the page that opened the dialog.
+- A change of an issuer (`UpdateIssuer`, `ActivateIssuer`) names the
+  issuer's own `ProjectID`, which is the scope a project Admin is authorized
+  at (BE-5) and makes no difference for an org-wide role; the create requests
+  name the scope the form chose. The actions follow the server's
+  transitions (Active to Archived to Destroyed): Archive is offered to an
+  Active issuer, Destroy to an Archived one, Activate to a Pending one.
+- A tenant has no way to list the platform issuers (BE-10), so the stepper's
+  "platform issuer" option takes an issuer ID; the design's "by label" waits
+  for the server.
+- Group-level validators do not show in a Material field: `mat-error`
+  renders only while the field's own control is invalid. The conditional
+  requirements of the signing step and of the import key are set on the
+  controls when the mode changes (`setValidators` in an effect), not on the
+  group.
 - `DeleteOrg` deactivates the org while the token still names it, so the
   console opens the org selection afterwards; the next `SelectOrg` issues a
   token for another org. The server has no call that drops the org of a

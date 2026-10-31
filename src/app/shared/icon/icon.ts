@@ -37,6 +37,11 @@ const paths = {
   key: 'M7 11a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 14 21 3 M17 7l3 3',
   users:
     'M9 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M2 21v-1a7 7 0 0 1 14 0v1 M16 4a4 4 0 0 1 0 8 M22 21v-1a7 7 0 0 0-5-6.7',
+  upload: 'M12 16V4 m-5 5 5-5 5 5 M4 20h16',
+  archive: 'M3 4h18v4H3z M5 8v12h14V8 M10 12h4',
+  bolt: 'M13 2 4 14h7l-1 8 9-12h-7z',
+  arrowLeft: 'M20 12H4 m6-6-6 6 6 6',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
 } as const;
 
 export type IconName = keyof typeof paths;

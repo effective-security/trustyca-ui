@@ -1,0 +1,86 @@
+<a class="back-link" routerLink="/issuers"><app-icon name="arrowLeft" />All issuers</a>
+@if (issuer(); as i) {
+  <div class="issuer-heading">
+    <div class="issuer-identity">
+      <p class="eyebrow">{{ i.Type | enumName: 'AuthorityType' }} authority</p>
+      <h1>{{ i.Label }}</h1>
+      <p class="issuer-subject">{{ i.Subject || 'Awaiting its certificate' }}</p>
+      <div class="issuer-chips">
+        <app-status-chip
+          [label]="i.Status | enumName: 'IssuerStatus'"
+          [tone]="statusTone(i.Status)"
+        />
+        <span class="subtle-tag">{{ i.ProjectID | scopeName }}</span>
+        @if (i.KeyProvider) {
+          <span class="subtle-tag">Key in {{ i.KeyProvider }}</span>
+        }
+      </div>
+    </div>
+    <div class="issuer-actions">
+      @if (page.canActivate()) {
+        <button mat-flat-button type="button" class="activate-button" (click)="activate()">
+          <app-icon name="bolt" />Activate
+        </button>
+      }
+      @if (page.canArchive()) {
+        <button mat-stroked-button type="button" class="archive-button" (click)="archive()">
+          <app-icon name="archive" />Archive
+        </button>
+      }
+      @if (page.canDestroy()) {
+        <button mat-stroked-button type="button" class="destroy-button" (click)="destroy()">
+          <app-icon name="trash" />Destroy
+        </button>
+      }
+    </div>
+  </div>
+  @if (i.Status === PENDING) {
+    <div class="pending-note" role="status">
+      <app-icon name="info" />
+      <p>
+        This issuer is waiting for its certificate. Download the signing request from the Chain tab,
+        have it signed by the external authority, then activate the issuer with the certificate and
+        its chain.
+      </p>
+    </div>
+  }
+  <nav mat-tab-nav-bar class="issuer-tabs" aria-label="Issuer sections" [tabPanel]="panel">
+    @for (tab of tabs; track tab.path) {
+      <a
+        mat-tab-link
+        [routerLink]="tab.path"
+        routerLinkActive
+        #active="routerLinkActive"
+        [active]="active.isActive"
+        >{{ tab.label }}</a
+      >
+    }
+  </nav>
+  <mat-tab-nav-panel #panel><router-outlet /></mat-tab-nav-panel>
+} @else if (page.unavailable()) {
+  <section class="panel">
+    <app-ca-unavailable [error]="page.issuer.error()" (retry)="page.reload()" />
+  </section>
+} @else if (failure(); as err) {
+  <section class="panel">
+    <app-empty-state
+      icon="warning"
+      [title]="page.notFound() ? 'No such issuer' : err.title"
+      [description]="
+        page.notFound()
+          ? 'There is no issuer with this ID in the organization, or it belongs to a project you cannot read.'
+          : err.detail
+      "
+    >
+      @if (page.notFound()) {
+        <a mat-stroked-button routerLink="/issuers">All issuers <app-icon name="arrow" /></a>
+      } @else {
+        <button mat-stroked-button type="button" (click)="page.reload()">Try again</button>
+      }
+    </app-empty-state>
+  </section>
+} @else {
+  <section class="panel">
+    <p class="panel-note" role="status">Loading the issuer…</p>
+  </section>
+}

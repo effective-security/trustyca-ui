@@ -81,7 +81,7 @@ export class TenantStore {
     return id ? this.projectName(id) : ALL_PROJECTS;
   });
 
-  /** The issuer labels by IKID the CA pages collected in this org */
+  /** The issuer labels the CA pages collected in this org, by the SKID of the issuer (the IKID its certificates carry) */
   readonly issuerLabels = this.labels.asReadonly();
 
   constructor() {
@@ -124,7 +124,7 @@ export class TenantStore {
     return projectId ? this.projectName(projectId) : ORG_WIDE;
   }
 
-  /** Keeps the labels of the issuers a CA page received, by IKID */
+  /** Keeps the labels of the issuers a CA page received, by their SKID (the IKID of the certificates they issue) */
   rememberIssuerLabels(entries: Iterable<readonly [string, string]>): void {
     this.labels.update((current) => {
       const next = new Map(current);
