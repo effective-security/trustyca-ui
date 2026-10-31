@@ -1,0 +1,133 @@
+<app-page-heading
+  title="Trust anchors"
+  description="The root certificates your relying parties trust."
+>
+  @if (canRegister()) {
+    <button mat-flat-button type="button" class="register-button" (click)="register()">
+      <app-icon name="plus" />Register anchor
+    </button>
+  }
+</app-page-heading>
+
+<section class="panel" aria-labelledby="org-roots-title">
+  <header class="panel-header">
+    <div>
+      <h2 id="org-roots-title">Organization roots</h2>
+      <p>The roots of the issuers registered here and the external anchors of the organization.</p>
+    </div>
+  </header>
+  @if (unavailable()) {
+    <app-ca-unavailable [error]="orgRoots.error()" (retry)="orgRoots.reload()" />
+  } @else {
+    <app-data-table
+      label="Organization roots"
+      [paged]="orgRoots"
+      [rowId]="rowId"
+      emptyIcon="anchor"
+      emptyTitle="No trust anchor yet"
+      emptyDescription="A Root issuer registered here becomes an anchor; an external root can be registered too."
+    >
+      <ng-container *appColumn="'Subject' of orgRoots; header: 'Subject'; primary: true; let r"
+        >{{ r.Subject }}<small class="row-sub">SKID {{ r.SKID | fingerprint }}</small></ng-container
+      >
+      <ng-container *appColumn="'Trust' of orgRoots; header: 'Trust'; width: '110px'; let r">
+        <app-status-chip [label]="r.Trust | enumName: 'Trust'" tone="neutral" />
+      </ng-container>
+      <ng-container
+        *appColumn="'Validity' of orgRoots; header: 'Valid until'; width: '170px'; let r"
+        >{{ r.NotAfter | rfc3339Date: 'date' }}
+        <small class="row-hint" [class]="expiry(r.NotAfter)">{{ r.NotAfter | expiresIn }}</small>
+      </ng-container>
+      <ng-container *appColumn="'Sha256' of orgRoots; header: 'SHA-256'; let r"
+        ><span class="row-mono fingerprint">{{ r.Sha256 | fingerprint }}</span></ng-container
+      >
+      <ng-container
+        *appColumn="'Actions' of orgRoots; header: ''; align: 'end'; width: '110px'; let r"
+      >
+        <span class="row-actions">
+          <button
+            mat-icon-button
+            type="button"
+            class="view-root"
+            title="View PEM"
+            [attr.aria-label]="'View ' + r.Subject"
+            (click)="view(r)"
+          >
+            <app-icon name="certificate" />
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            class="download-root"
+            title="Download PEM"
+            [attr.aria-label]="'Download ' + r.Subject"
+            (click)="download(r)"
+          >
+            <app-icon name="download" />
+          </button>
+        </span>
+      </ng-container>
+    </app-data-table>
+  }
+</section>
+
+<section class="panel" aria-labelledby="platform-roots-title">
+  <header class="panel-header">
+    <div>
+      <h2 id="platform-roots-title">Platform roots</h2>
+      <p>The anchors of the platform, above the issuing CAs it signs for the organizations.</p>
+    </div>
+  </header>
+  <app-data-table
+    label="Platform roots"
+    [rows]="platformRows()"
+    [loading]="platformRoots.isLoading()"
+    [error]="platformRoots.error()"
+    [rowId]="rowId"
+    emptyIcon="anchor"
+    emptyTitle="No platform root"
+    emptyDescription="The platform publishes no anchor."
+    (retry)="platformRoots.reload()"
+  >
+    <ng-container *appColumn="'Subject' of platformRows(); header: 'Subject'; primary: true; let r"
+      >{{ r.Subject }}<small class="row-sub">SKID {{ r.SKID | fingerprint }}</small></ng-container
+    >
+    <ng-container *appColumn="'Trust' of platformRows(); header: 'Trust'; width: '110px'; let r">
+      <app-status-chip [label]="r.Trust | enumName: 'Trust'" tone="neutral" />
+    </ng-container>
+    <ng-container
+      *appColumn="'Validity' of platformRows(); header: 'Valid until'; width: '170px'; let r"
+      >{{ r.NotAfter | rfc3339Date: 'date' }}
+      <small class="row-hint" [class]="expiry(r.NotAfter)">{{ r.NotAfter | expiresIn }}</small>
+    </ng-container>
+    <ng-container *appColumn="'Sha256' of platformRows(); header: 'SHA-256'; let r"
+      ><span class="row-mono fingerprint">{{ r.Sha256 | fingerprint }}</span></ng-container
+    >
+    <ng-container
+      *appColumn="'Actions' of platformRows(); header: ''; align: 'end'; width: '110px'; let r"
+    >
+      <span class="row-actions">
+        <button
+          mat-icon-button
+          type="button"
+          class="view-root"
+          title="View PEM"
+          [attr.aria-label]="'View ' + r.Subject"
+          (click)="view(r)"
+        >
+          <app-icon name="certificate" />
+        </button>
+        <button
+          mat-icon-button
+          type="button"
+          class="download-root"
+          title="Download PEM"
+          [attr.aria-label]="'Download ' + r.Subject"
+          (click)="download(r)"
+        >
+          <app-icon name="download" />
+        </button>
+      </span>
+    </ng-container>
+  </app-data-table>
+</section>

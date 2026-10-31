@@ -151,7 +151,8 @@ application:
 
 `provideCaApi()` adds `CA_SERVICE` and `CIS_SERVICE` on the lazy routes of
 the CA pages (`features/ca/ca.routes.ts`), so the CA messages (about 125 kB)
-load with the first CA page and not with the login.
+load with the first CA page and not with the login; a service an injector
+above already provides (the fakes of a spec) is reused.
 
 `AuthStore` and `TenantStore` are `providedIn: 'root'` Angular services that
 turn `AppUser.subscribe` and the discovery calls into signals, so templates
@@ -360,8 +361,9 @@ certificate; publish CRLs) get the longer deadline `CaService` sets.
   Intermediate, Issuing, Shaken, Shaken delegated); subject (`X509Subject`
   fields, SAN); key (`KeySpec` ECDSA P-256 default, RSA 2048 to 4096,
   P-384; key provider); signing (self-signed for Root; parent issuer from the
-  Active issuers of the scope, plus "platform issuer" by label, with the CA
-  profile label; or "external: create a CSR" for a Pending issuer);
+  Active issuers of the scope, plus a platform issuer by the ID an operator
+  hands out, since a tenant cannot list the platform issuers (BE-10), with
+  the CA profile label; or "external: create a CSR" for a Pending issuer);
   configuration (`IssuerConfig` defaults from the parent); review. The
   result page shows the CSR for a Pending issuer.
 - **Import** (`ImportIssuer`): label, type, certificate, intermediates and
@@ -620,7 +622,22 @@ are committed, never edited, and excluded from lint and format. The
   `ProjectID`, "Org-wide" when empty).
 - **Forms**: typed reactive forms; durations validated as Go durations
   (`168h`, `30m`); OIDs as dotted numbers; PEM blocks by header
-  (`parsePemBlocks` also feeds the PEM viewer).
+  (`parsePemBlocks` also feeds the PEM viewer). `app-pem-input` is the PEM
+  field: paste, choose a file or drop one, the blocks found and the errors
+  by name. A requirement that depends on another field (the parent of a
+  signing mode, the key of an import) is set on the control when the mode
+  changes, since `mat-error` shows only for the field's own control.
+- **CA state** (`shared/ca-state`): `app-ca-unavailable` is the state of
+  section 2.1 with the server's text and Retry; `app-request-error` renders
+  a failure next to the form that sent it, a conflict as a notice with the
+  server's text; `Operation` holds the busy state and the failure of one
+  request, for the key operations with the longer deadline.
+- **`app-stepper`** (`shared/stepper`): a linear stepper of the console's
+  own, `StepperState` and the rail; the page renders the open step.
+  Material's stepper imports `MatIcon` and with it `HttpClient` into the
+  initial bundle.
+- **`app-pem-dialog`**: a PEM viewer in a dialog, for the rows of a list that
+  hold a certificate.
 
 ## 12. Platform, storage and configuration
 
@@ -704,7 +721,9 @@ which the copied folders already use.
   specs and refuses `vi.mock` of project files, so the `secdi` pattern does
   not apply), error mapping, guards and stores with the fakes of
   `src/app/testing/test-api.ts`, pipes.
-- **Component**: pages with `TestBed` and fake `I*Service` providers;
+- **Component**: pages with `TestBed` and fake `I*Service` providers (the
+  CA pages with `FakeCaService` and `FakeCisService`, which keep the issuers
+  and the roots in memory with the server's rules the pages rely on);
   router harness tests as in `app.spec.ts` for the auth redirects and the
   org and project switching.
 - **Contract**: the service specs reach every method through the generated
@@ -758,6 +777,7 @@ which the copied folders already use.
 | BE-3 | Done in `trustyca` (2026-10-31): `Orgs.ListEvents{ProjectID?, Type?, After?, Before?, Limit, Cursor}` returning `EventsResponse`, cursor only, `Viewer,APIKey` with `org:read` | done |
 | BE-4 | Done in `trustyca`: `CA.GetSummary`, the issuers by status, the certificates by status and by expiry bucket (7, 30, 90 days), the CRLs by state (current, due, overdue, missing), for the org or a `ProjectID` | exact dashboard tiles |
 | BE-5 | Done in `trustyca` (2026-10-30, ROADMAP RM-004 closed): optional `ProjectID` on `UpdateIssuerRequest`, `ActivateIssuerRequest` and `DeleteProfileRequest`, so a project Admin acts on the rows of its project; the console sets it from the project selection as it does for `UpdateCertificateLabel` | done |
+| BE-10 | Open: a tenant cannot discover a platform issuer (`ParentID` is an ID; `GetIssuer` and `ListIssuers` answer the org's rows only). A `ParentLabel` resolved in the platform scope, or a `CA.ListPlatformIssuers` with label, subject and allowed profiles, would let the stepper offer the platform parents by label | the parent selector of the Register stepper |
 | BE-6 | Done in `trustyca`: `ListIssuers{IDs, IKIDs}` and `ListProfiles{IDs, Labels}`, at most 500 each, resolve the issuers and profiles of a page of certificates in one call each | large tenants |
 | BE-7 | Done (verified 2026-10-30, no change): `timeout.request` is porto's shutdown drain timeout and the listeners set no write deadline; the gRPC server takes the console's `grpc-timeout` as the deadline the `ca` proxy forwards | done |
 | BE-8 | Done in `0c02438` (ROADMAP RM-006): `OrgID` dropped from the public `pb.CA` requests (field 1 reserved); the stubs are regenerated | done |

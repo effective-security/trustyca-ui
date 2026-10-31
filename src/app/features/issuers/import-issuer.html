@@ -1,0 +1,153 @@
+<a class="back-link" routerLink="/issuers"><app-icon name="arrowLeft" />All issuers</a>
+<app-page-heading
+  eyebrow="Issuers"
+  title="Import issuer"
+  description="Bring an existing certification authority: its certificate, its chain and its key."
+/>
+
+<form class="panel" [formGroup]="form" (ngSubmit)="save()" aria-labelledby="import-title">
+  <header class="panel-header">
+    <div>
+      <h2 id="import-title">Identity</h2>
+      <p>The scope, the label and the type of the imported authority.</p>
+    </div>
+  </header>
+  <div class="panel-body ca-form">
+    <div class="form-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Scope</mat-label>
+        <mat-select formControlName="projectId" class="scope-select">
+          @if (tenant.hasOrgWideRole()) {
+            <mat-option value="">Org-wide</mat-option>
+          }
+          @for (p of tenant.selectableProjects(); track p.ID) {
+            <mat-option [value]="p.ID">{{ p.Name || p.Alias }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Label</mat-label>
+        <input
+          matInput
+          formControlName="label"
+          required
+          maxlength="64"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <mat-hint>Unique in its scope; no spaces.</mat-hint>
+        @if (form.controls.label.hasError('required')) {
+          <mat-error>A label is required.</mat-error>
+        } @else if (form.controls.label.hasError('pattern')) {
+          <mat-error>A label has no spaces.</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    <mat-form-field appearance="outline">
+      <mat-label>Type</mat-label>
+      <mat-select formControlName="type" class="type-select">
+        @for (t of types; track t.value) {
+          <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <header class="panel-header">
+    <div>
+      <h2>Certificate and chain</h2>
+      <p>The server checks that the key matches the certificate and that the chain verifies.</p>
+    </div>
+  </header>
+  <div class="panel-body ca-form">
+    <app-pem-input
+      class="certificate-input"
+      label="Issuer certificate"
+      [control]="form.controls.certificate"
+      [required]="true"
+      expected="CERTIFICATE"
+    />
+    <app-pem-input
+      class="intermediates-input"
+      label="Intermediate certificates"
+      [control]="form.controls.intermediates"
+      [multiple]="true"
+      expected="CERTIFICATE"
+      [rows]="4"
+      hint="Optional: the CA certificates between the issuer and the root, in order."
+    />
+    <app-pem-input
+      class="root-input"
+      label="Root certificate"
+      [control]="form.controls.root"
+      expected="CERTIFICATE"
+      [rows]="4"
+      hint="Optional for a self-signed issuer, which is its own root."
+    />
+  </div>
+
+  <header class="panel-header">
+    <div>
+      <h2>Private key</h2>
+      <p>A reference into a crypto provider, or the key itself.</p>
+    </div>
+  </header>
+  <div class="panel-body ca-form">
+    <mat-radio-group formControlName="keyMode" class="key-modes" aria-label="Where the key is">
+      <mat-radio-button value="uri">A key in a crypto provider (URI)</mat-radio-button>
+      <mat-radio-button value="pem">The key in PEM</mat-radio-button>
+    </mat-radio-group>
+    @if (keyMode() === 'uri') {
+      <mat-form-field appearance="outline">
+        <mat-label>Key URI</mat-label>
+        <input
+          matInput
+          formControlName="keyUri"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="pkcs11:token=...;object=..."
+        />
+        <mat-hint>A key the server's providers hold: pkcs11:, awskms://, gcpkms://.</mat-hint>
+        @if (form.controls.keyUri.hasError('required')) {
+          <mat-error>The key URI is required.</mat-error>
+        }
+      </mat-form-field>
+    } @else {
+      <div class="sensitive-note" role="note">
+        <app-icon name="lock" />
+        <p>
+          The key is sent once over the session and stored wrapped by the data protection provider
+          of the server. The console keeps no copy: it leaves this form when the request is sent.
+        </p>
+      </div>
+      <app-pem-input
+        class="key-input"
+        label="Private key"
+        [control]="form.controls.keyPem"
+        [required]="true"
+        expected="PRIVATE KEY"
+        [rows]="5"
+      />
+    }
+  </div>
+
+  <header class="panel-header">
+    <div>
+      <h2>Runtime settings</h2>
+      <p>Optional: the URL templates, the CRL and OCSP timings and the allowed profiles.</p>
+    </div>
+  </header>
+  <div class="panel-body ca-form">
+    <app-issuer-config-form [form]="configForm" />
+    <app-request-error [error]="op.error()" context="Could not import the issuer" />
+    @if (op.busy()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Importing" />
+    }
+    <div class="form-actions">
+      <a mat-button routerLink="/issuers" [class.disabled]="op.busy()">Cancel</a>
+      <button mat-flat-button type="submit" class="import-button" [disabled]="op.busy()">
+        {{ op.busy() ? 'Importing…' : 'Import issuer' }}
+      </button>
+    </div>
+  </div>
+</form>

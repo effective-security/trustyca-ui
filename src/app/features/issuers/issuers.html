@@ -1,0 +1,100 @@
+<app-page-heading title="Issuers" description="The signing authorities behind your chain of trust.">
+  @if (canImport()) {
+    <a mat-stroked-button routerLink="/issuers/import" class="import-link">
+      <app-icon name="upload" />Import
+    </a>
+  }
+  @if (canRegister()) {
+    <a mat-flat-button routerLink="/issuers/register" class="register-link">
+      <app-icon name="plus" />Register issuer
+    </a>
+  }
+</app-page-heading>
+
+<section class="panel" aria-labelledby="issuers-title">
+  <header class="panel-header">
+    <div>
+      <h2 id="issuers-title">Certificate issuers</h2>
+      <p>
+        The roots, intermediates and issuing CAs of {{ scopeText() }}. An org-wide issuer is
+        inherited by every project.
+      </p>
+    </div>
+  </header>
+  <div class="filter-row">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Status</mat-label>
+      <mat-select [value]="status()" (valueChange)="status.set($event)" class="status-filter">
+        @for (o of statusFilters; track o.value) {
+          <mat-option [value]="o.value">{{ o.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Type</mat-label>
+      <mat-select [value]="type()" (valueChange)="type.set($event)" class="type-filter">
+        @for (o of typeFilters; track o.value) {
+          <mat-option [value]="o.value">{{ o.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    @if (filtered()) {
+      <button mat-button type="button" class="clear-filters" (click)="clearFilters()">
+        Clear filters
+      </button>
+    }
+  </div>
+  @if (unavailable()) {
+    <app-ca-unavailable [error]="issuers.error()" (retry)="issuers.reload()" />
+  } @else {
+    <app-data-table
+      label="Issuers"
+      [paged]="issuers"
+      [(pageSize)]="pageSize"
+      [rowId]="rowId"
+      [clickable]="true"
+      emptyIcon="layers"
+      [emptyTitle]="filtered() ? 'No issuer matches the filters' : 'No issuers yet'"
+      [emptyDescription]="
+        filtered()
+          ? 'Clear the filters to see every issuer of the scope.'
+          : 'Register the first issuing CA of the organization, or import an existing one.'
+      "
+      (rowClick)="open($event)"
+    >
+      @if (canRegister() && !filtered()) {
+        <a tableEmptyAction mat-stroked-button routerLink="/issuers/register"
+          >Register issuer <app-icon name="arrow"
+        /></a>
+      }
+      <ng-container *appColumn="'Label' of issuers; header: 'Issuer'; primary: true; let i"
+        >{{ i.Label }}<small class="row-sub">{{ i.Subject || 'Awaiting its certificate' }}</small>
+      </ng-container>
+      <ng-container *appColumn="'Type' of issuers; header: 'Type'; width: '140px'; let i">{{
+        i.Type | enumName: 'AuthorityType'
+      }}</ng-container>
+      <ng-container *appColumn="'Status' of issuers; header: 'Status'; width: '120px'; let i">
+        <app-status-chip
+          [label]="i.Status | enumName: 'IssuerStatus'"
+          [tone]="statusTone(i.Status)"
+        />
+      </ng-container>
+      <ng-container *appColumn="'Scope' of issuers; header: 'Scope'; width: '150px'; let i"
+        ><span class="row-muted">{{ i.ProjectID | scopeName }}</span></ng-container
+      >
+      <ng-container
+        *appColumn="'NotAfter' of issuers; header: 'Valid until'; width: '170px'; let i"
+      >
+        @if (i.NotAfter) {
+          {{ i.NotAfter | rfc3339Date: 'date' }}
+          <small class="row-hint" [class]="expiry(i.NotAfter)">{{ i.NotAfter | expiresIn }}</small>
+        } @else {
+          <span class="row-muted">—</span>
+        }
+      </ng-container>
+      <ng-container *appColumn="'Crl' of issuers; header: 'CRL'; align: 'end'; width: '90px'; let i"
+        ><span class="row-mono">{{ i.CrlNumber || '—' }}</span></ng-container
+      >
+    </app-data-table>
+  }
+</section>

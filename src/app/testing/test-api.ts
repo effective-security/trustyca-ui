@@ -43,12 +43,17 @@ import {
   APP_PLATFORM,
   APP_USER,
   AUTH_SERVICE,
+  CA_SERVICE,
+  CIS_SERVICE,
   ORGS_SERVICE,
   RPC_TRANSPORT,
   RUNTIME_CONFIG,
   STATUS_SERVICE,
   STORAGE,
 } from '../core/api/tokens';
+import { FakeCaService, FakeCisService } from './fake-ca';
+
+export * from './fake-ca';
 
 export const TEST_CONFIG: RuntimeConfig = {
   apiUrl: 'https://localhost:8880',
@@ -77,9 +82,29 @@ export const OWNER_METHODS = [
   '/pb.Orgs/ListAPIKeys',
   '/pb.Orgs/ListEvents',
   '/pb.CA/ListIssuers',
+  '/pb.CA/GetIssuer',
   '/pb.CA/RegisterIssuer',
+  '/pb.CA/ImportIssuer',
+  '/pb.CA/ActivateIssuer',
+  '/pb.CA/UpdateIssuer',
+  '/pb.CA/ListRoots',
+  '/pb.CA/RegisterRoot',
+  '/pb.CA/ListProfiles',
+  '/pb.CA/GetProfile',
   '/pb.CA/ListCertificates',
   '/pb.CA/SignCertificate',
+];
+
+/** The read methods of a Viewer of the whole console */
+export const VIEWER_METHODS = [
+  '/pb.Orgs/GetOrg',
+  '/pb.Orgs/ListProjects',
+  '/pb.CA/ListIssuers',
+  '/pb.CA/GetIssuer',
+  '/pb.CA/ListRoots',
+  '/pb.CA/ListProfiles',
+  '/pb.CA/GetProfile',
+  '/pb.CA/ListCertificates',
 ];
 
 /** The MethodAccess rows of a caller scope that allows exactly these methods */
@@ -281,6 +306,8 @@ export interface TestApi {
   platform: FakePlatform;
   auth: FakeAuthService;
   orgs: FakeOrgsService;
+  ca: FakeCaService;
+  cis: FakeCisService;
   status: IStatusService;
   transport: FakeTransport;
   providers: Provider[];
@@ -288,8 +315,9 @@ export interface TestApi {
 
 /**
  * The DI tokens of provideTrustyApi() with fakes behind them: the real
- * storage and AppUser over the browser storage of jsdom, fake services,
- * and the FakeTransport for the services of provideCaApi()
+ * storage and AppUser over the browser storage of jsdom and fake services,
+ * the CA and CIS ones included (provideCaApi() on the CA routes reuses a
+ * service provided above it); the FakeTransport answers anything else
  */
 export function createTestApi(config: Partial<RuntimeConfig> = {}): TestApi {
   const storage = new StorageService(new PlatformInfo('test', window), TEST_PREFIX);
@@ -297,6 +325,8 @@ export function createTestApi(config: Partial<RuntimeConfig> = {}): TestApi {
   const platform = new FakePlatform();
   const auth = new FakeAuthService(user);
   const orgs = new FakeOrgsService();
+  const ca = new FakeCaService();
+  const cis = new FakeCisService();
   const status: IStatusService = {
     version: vi.fn(async () => ({ Build: 'v0.1.12-test', Runtime: 'go1.27' })),
     server: vi.fn(async () => ServerStatusResponse.create()),
@@ -308,6 +338,8 @@ export function createTestApi(config: Partial<RuntimeConfig> = {}): TestApi {
     platform,
     auth,
     orgs,
+    ca,
+    cis,
     status,
     transport,
     providers: [
@@ -317,6 +349,8 @@ export function createTestApi(config: Partial<RuntimeConfig> = {}): TestApi {
       { provide: APP_PLATFORM, useValue: platform },
       { provide: AUTH_SERVICE, useValue: auth },
       { provide: ORGS_SERVICE, useValue: orgs },
+      { provide: CA_SERVICE, useValue: ca },
+      { provide: CIS_SERVICE, useValue: cis },
       { provide: STATUS_SERVICE, useValue: status },
       { provide: RPC_TRANSPORT, useValue: transport },
       // the menus and dialogs of the specs open and close at once
