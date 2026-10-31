@@ -18,6 +18,25 @@ const paths = {
   lock: 'M5 10h14v11H5z M8 10V6a4 4 0 0 1 8 0v4 M12 14v3',
   activity: 'M2 12h5l3-9 4 18 3-9h5',
   check: 'm5 12 4 4L19 6',
+  checkCircle: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 m-4 9 3 3 5-6',
+  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M20 20l-4-4',
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  plus: 'M12 5v14 M5 12h14',
+  edit: 'M4 20h4L18 10l-4-4L4 16z M13 7l4 4',
+  trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v6 M14 11v6',
+  copy: 'M9 9h10v12H9z M5 15V3h10',
+  download: 'M12 4v12 m-5-5 5 5 5-5 M4 20h16',
+  more: 'M12 5v.01 M12 12v.01 M12 19v.01',
+  warning: 'm12 3 10 18H2z M12 10v4 M12 18v.01',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 11v5 M12 8v.01',
+  refresh: 'M20 12a8 8 0 1 1-2.3-5.7 M20 4v5h-5',
+  building: 'M4 21V5l8-3 8 3v16 M9 9v.01 M9 13v.01 M15 9v.01 M15 13v.01 M10 21v-4h4v4 M2 21h20',
+  ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M5.6 5.6l12.8 12.8',
+  anchor: 'M12 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4 M12 7v14 M4 13a8 8 0 0 0 16 0 M4 13H2 M20 13h2',
+  document: 'M6 2h9l5 5v15H6z M15 2v5h5 M9 13h6 M9 17h6',
+  key: 'M7 11a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 14 21 3 M17 7l3 3',
+  users:
+    'M9 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M2 21v-1a7 7 0 0 1 14 0v1 M16 4a4 4 0 0 1 0 8 M22 21v-1a7 7 0 0 0-5-6.7',
 } as const;
 
 export type IconName = keyof typeof paths;

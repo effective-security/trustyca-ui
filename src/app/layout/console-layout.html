@@ -20,30 +20,69 @@
       >
         <app-brand [inverse]="true" />
       </a>
-      <a
+      <button
+        type="button"
         class="workspace-label"
-        routerLink="/auth/select-org"
         title="Switch organization"
-        (click)="navOpen.set(false)"
+        [matMenuTriggerFor]="orgMenu"
+        (menuOpened)="orgMenuOpened.set(true)"
       >
         <span class="workspace-symbol">{{ orgInitial() }}</span>
-        <div>
+        <span class="workspace-text">
           {{ orgName() }}<small>{{ roleLabel() || 'Trusty CA console' }}</small>
+        </span>
+        <app-icon name="chevron" class="workspace-chevron" />
+      </button>
+      <mat-menu #orgMenu="matMenu" class="switcher-menu">
+        <div class="menu-identity">
+          <strong>Organizations</strong>
+          <span>Your access is granted per organization.</span>
         </div>
-      </a>
-      <p class="nav-label">Workspace</p>
-      <nav aria-label="Primary">
-        @for (item of navigation; track item.path) {
-          <a
-            class="nav-link"
-            [routerLink]="item.path"
-            routerLinkActive="active"
-            ariaCurrentWhenActive="page"
-            (click)="navOpen.set(false)"
-            ><app-icon [name]="item.icon" /><span>{{ item.label }}</span></a
-          >
+        <mat-divider />
+        @if (userOrgs.isLoading()) {
+          <div class="menu-note" role="status">Loading your organizations…</div>
+        } @else if (userOrgs.error()) {
+          <div class="menu-note" role="alert">Your organizations could not be loaded.</div>
         }
-      </nav>
+        @for (org of orgOptions(); track org.OrgID) {
+          <button
+            mat-menu-item
+            class="switcher-item org-item"
+            [class.current]="org.OrgID === session.orgId()"
+            [disabled]="switching() !== ''"
+            (click)="switchOrg(org)"
+          >
+            <span class="switcher-text"
+              >{{ org.OrgName || org.OrgAlias
+              }}<small>{{
+                switching() === org.OrgID ? 'Switching…' : orgRoleLabel(org)
+              }}</small></span
+            >
+            @if (org.OrgID === session.orgId()) {
+              <app-icon name="check" class="switcher-check" />
+            }
+          </button>
+        }
+        <mat-divider />
+        <button mat-menu-item routerLink="/auth/select-org">
+          <app-icon class="menu-icon" name="layers" />All organizations
+        </button>
+      </mat-menu>
+      @for (group of navigation(); track group.label) {
+        <p class="nav-label">{{ group.label }}</p>
+        <nav [attr.aria-label]="group.label">
+          @for (item of group.items; track item.path) {
+            <a
+              class="nav-link"
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              ariaCurrentWhenActive="page"
+              (click)="navOpen.set(false)"
+              ><app-icon [name]="item.icon" /><span>{{ item.label }}</span></a
+            >
+          }
+        </nav>
+      }
       <div class="sidebar-bottom">
         <div class="trust-note">
           <app-icon name="shield" />
@@ -68,10 +107,72 @@
         <app-icon name="menu" />
       </button>
       <div class="breadcrumb">
-        <span>Workspace</span><span class="breadcrumb-slash">/</span
-        ><strong>{{ section() }}</strong>
+        <span>{{ orgName() }}</span
+        ><span class="breadcrumb-slash">/</span><strong>{{ section() }}</strong>
       </div>
       <span class="toolbar-spacer"></span>
+      <button
+        mat-button
+        class="project-button"
+        title="Choose the project to work in"
+        [matMenuTriggerFor]="projectMenu"
+      >
+        <span class="project-content"
+          ><app-icon name="folder" /><span class="project-label">{{ tenant.selectionLabel() }}</span
+          ><app-icon name="chevron"
+        /></span>
+      </button>
+      <mat-menu #projectMenu="matMenu" class="switcher-menu">
+        <div class="menu-identity">
+          <strong>Projects</strong>
+          <span>The lists and the new resources follow this selection.</span>
+        </div>
+        <mat-divider />
+        @if (tenant.hasOrgWideRole()) {
+          <button
+            mat-menu-item
+            class="switcher-item project-item"
+            [class.current]="!tenant.projectId()"
+            (click)="selectProject('')"
+          >
+            <span class="switcher-text"
+              >All projects<small>Everything in the organization</small></span
+            >
+            @if (!tenant.projectId()) {
+              <app-icon name="check" class="switcher-check" />
+            }
+          </button>
+        }
+        @if (tenant.projects.isLoading()) {
+          <div class="menu-note" role="status">Loading the projects…</div>
+        } @else if (tenant.projects.error()) {
+          <div class="menu-note" role="alert">The projects could not be loaded.</div>
+        }
+        @for (p of tenant.selectableProjects(); track p.ID) {
+          <button
+            mat-menu-item
+            class="switcher-item project-item"
+            [class.current]="p.ID === tenant.projectId()"
+            (click)="selectProject(p.ID)"
+          >
+            <span class="switcher-text"
+              >{{ p.Name || p.Alias }}<small>{{ p.Alias }}</small></span
+            >
+            @if (p.ID === tenant.projectId()) {
+              <app-icon name="check" class="switcher-check" />
+            }
+          </button>
+        } @empty {
+          @if (!tenant.projects.isLoading() && !tenant.projects.error()) {
+            <div class="menu-note">No projects yet.</div>
+          }
+        }
+        <mat-divider />
+        <button mat-menu-item routerLink="/org/projects">
+          <app-icon class="menu-icon" name="settings" />Manage projects
+        </button>
+      </mat-menu>
+      <span class="toolbar-divider"></span>
       @if (roleLabel()) {
         <span class="preview-badge" title="Your role in this organization"
           ><span class="status-dot"></span> {{ roleLabel() }}</span

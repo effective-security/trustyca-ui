@@ -151,6 +151,30 @@ export class AuthStore {
   }
 
   /**
+   * Switches the session to the org and returns the route to open: the page
+   * requested before the sign-in, the home, or the notice of an org without
+   * a role
+   */
+  async switchOrg(orgId: string): Promise<string> {
+    await this.selectOrg(orgId);
+    return this.completeSignIn();
+  }
+
+  /** Replaces the org of the shell after a change of its name or description */
+  orgUpdated(org: Org): void {
+    if (org.ID === this.user.orgId) {
+      this.currentOrg.set(org);
+    }
+  }
+
+  /** Reads the org again, for a shell whose first read failed */
+  async refreshOrg(): Promise<Org> {
+    const org = await this.orgs.getOrg();
+    this.orgUpdated(org);
+    return org;
+  }
+
+  /**
    * Revokes the token of the session, whatever the outcome forgets the
    * user, and opens the login page
    */

@@ -1,0 +1,72 @@
+<section class="panel" aria-labelledby="projects-title">
+  <header class="panel-header">
+    <div>
+      <h2 id="projects-title">Projects</h2>
+      <p>
+        Projects scope issuers, profiles, certificates, members and API keys inside the
+        organization. Resources outside a project are org-wide.
+      </p>
+    </div>
+    @if (canRegister()) {
+      <button mat-flat-button type="button" class="register-button" (click)="register()">
+        <app-icon name="plus" />Register project
+      </button>
+    }
+  </header>
+  <app-data-table
+    label="Projects"
+    [rows]="rows()"
+    [loading]="tenant.projects.isLoading()"
+    [error]="tenant.projects.error()"
+    [rowId]="rowId"
+    emptyIcon="folder"
+    emptyTitle="No projects yet"
+    emptyDescription="Register a project to scope issuers, certificates and members. Until then everything is org-wide."
+    (retry)="tenant.invalidateProjects()"
+  >
+    <ng-container *appColumn="'Name' of rows(); header: 'Project'; primary: true; let p"
+      >{{ p.Name || p.Alias }}<small class="row-sub">{{ p.Alias }}</small></ng-container
+    >
+    <ng-container *appColumn="'Description' of rows(); header: 'Description'; let p"
+      ><span class="row-muted">{{ p.Description || '—' }}</span></ng-container
+    >
+    <ng-container *appColumn="'Status' of rows(); header: 'Status'; width: '120px'; let p">
+      <app-status-chip [label]="p.Status | enumName: 'ItemStatus'" [tone]="statusTone(p.Status)" />
+    </ng-container>
+    <ng-container *appColumn="'Created' of rows(); header: 'Created'; width: '160px'; let p">{{
+      p.CreatedAt | rfc3339Date: 'date'
+    }}</ng-container>
+    @if (hasActions()) {
+      <ng-container
+        *appColumn="'Actions' of rows(); header: ''; align: 'end'; width: '110px'; let p"
+      >
+        <span class="row-actions">
+          @if (canUpdate()) {
+            <button
+              mat-icon-button
+              type="button"
+              class="edit-project"
+              title="Edit"
+              [attr.aria-label]="'Edit ' + (p.Name || p.Alias)"
+              (click)="edit(p)"
+            >
+              <app-icon name="edit" />
+            </button>
+          }
+          @if (canDelete() && p.Status !== INACTIVE) {
+            <button
+              mat-icon-button
+              type="button"
+              class="delete-project"
+              title="Delete"
+              [attr.aria-label]="'Delete ' + (p.Name || p.Alias)"
+              (click)="remove(p)"
+            >
+              <app-icon name="trash" />
+            </button>
+          }
+        </span>
+      </ng-container>
+    }
+  </app-data-table>
+</section>

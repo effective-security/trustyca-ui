@@ -36,6 +36,10 @@ describe('CaService', () => {
 
     await ca.publishCrls({ Force: true });
     expect(transport.last('PublishCrls')?.input).toMatchObject({ ProjectID: 'p1', Force: true });
+
+    await ca.getSummary({});
+    expect(transport.last('GetSummary')?.input).toMatchObject({ ProjectID: 'p1' });
+    expect(transport.last('GetSummary')?.options.timeout).toBeUndefined();
   });
 
   it('leaves the scope of a create, revoke or lookup to the page', async () => {

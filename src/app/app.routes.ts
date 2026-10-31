@@ -58,6 +58,10 @@ export const routes: Routes = [
         title: 'Settings · Trusty CA',
         loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),
       },
+      {
+        path: 'org',
+        loadChildren: () => import('./features/org/org.routes').then((m) => m.ORG_ROUTES),
+      },
       // last: the CA pages load with their services when no route above matches
       { path: '', loadChildren: () => import('./features/ca/ca.routes').then((m) => m.CA_ROUTES) },
     ],

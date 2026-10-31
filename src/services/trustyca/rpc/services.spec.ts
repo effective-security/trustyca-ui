@@ -27,6 +27,7 @@ describe('rpc services', () => {
     await orgs.getProject({});
     await orgs.listProjects({});
     await orgs.deleteProject({});
+    await orgs.listEvents({ Limit: 20 });
     await orgs.createAPIKey({});
     await orgs.listAPIKeys({});
     await orgs.deleteAPIKey({});
@@ -48,11 +49,13 @@ describe('rpc services', () => {
       'GetProject',
       'ListProjects',
       'DeleteProject',
+      'ListEvents',
       'CreateAPIKey',
       'ListAPIKeys',
       'DeleteAPIKey',
     ]);
     expect(t.last('RegisterOrg')?.input).toMatchObject({ Name: 'Acme' });
+    expect(t.last('ListEvents')?.input).toMatchObject({ Limit: 20, Cursor: '' });
   });
 
   it('CisService reaches every method of pb.CIS and asks for the platform roots by default', async () => {

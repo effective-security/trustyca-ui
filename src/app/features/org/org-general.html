@@ -1,0 +1,77 @@
+<section class="panel" aria-labelledby="org-general-title">
+  <header class="panel-header">
+    <div>
+      <h2 id="org-general-title">General</h2>
+      <p>The name and description of the organization, as its members see them.</p>
+    </div>
+    @if (org()) {
+      <div class="panel-tools">
+        <app-status-chip [label]="statusLabel()" [tone]="statusTone()" />
+        @if (canUpdate() && !editing()) {
+          <button mat-stroked-button type="button" class="edit-button" (click)="edit()">
+            <app-icon name="edit" />Edit
+          </button>
+        }
+      </div>
+    }
+  </header>
+  @if (org()) {
+    @if (editing()) {
+      <form class="org-form" [formGroup]="form" (ngSubmit)="save()">
+        <mat-form-field appearance="outline">
+          <mat-label>Name</mat-label>
+          <input matInput formControlName="Name" required maxlength="120" />
+          @if (form.controls.Name.hasError('required')) {
+            <mat-error>A name is required.</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Description</mat-label>
+          <textarea matInput formControlName="Description" rows="3" maxlength="1000"></textarea>
+        </mat-form-field>
+        @if (failure()) {
+          <p class="form-error" role="alert">{{ failure() }}</p>
+        }
+        <div class="form-actions">
+          <button mat-button type="button" [disabled]="saving()" (click)="cancel()">Cancel</button>
+          <button mat-flat-button type="submit" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      </form>
+    } @else {
+      <app-kv-list [items]="items()" />
+    }
+  } @else if (loading() || refreshing()) {
+    <p class="panel-note" role="status">Loading the organization…</p>
+  } @else {
+    <div class="panel-note" role="alert">
+      The organization could not be loaded.
+      <button mat-button type="button" (click)="reload()">Try again</button>
+    </div>
+  }
+</section>
+
+@if (canDelete()) {
+  <section class="panel danger-zone" aria-labelledby="org-danger-title">
+    <header class="panel-header">
+      <div>
+        <h2 id="org-danger-title">Delete organization</h2>
+        <p>
+          Deactivates the organization and everything in it. Only an Owner can do this, and the
+          console cannot undo it.
+        </p>
+      </div>
+      <button
+        mat-stroked-button
+        type="button"
+        class="danger-button"
+        [disabled]="!org()"
+        (click)="remove()"
+      >
+        Delete organization
+      </button>
+    </header>
+    <div class="panel-spacer"></div>
+  </section>
+}

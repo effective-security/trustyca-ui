@@ -4,6 +4,8 @@
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { CA } from "./ca";
+import type { SummaryResponse } from "./ca";
+import type { GetSummaryRequest } from "./ca";
 import type { OCSPResponse } from "./ca";
 import type { OCSPRequest } from "./ca";
 import type { CrlsResponse } from "./ca";
@@ -216,6 +218,20 @@ export interface ICAClient {
      * @generated from protobuf rpc: SignOCSP
      */
     signOCSP(input: OCSPRequest, options?: RpcOptions): UnaryCall<OCSPRequest, OCSPResponse>;
+    // 
+    // Summary
+    // 
+
+    /**
+     * GetSummary returns the counts of the tenant's dashboard: the issuers
+     * by status, the certificates by status and by expiry, and the issuers
+     * that publish CRLs by the state of their CRL, for the org or for one
+     * project. Without a project, a member with project grants only gets
+     * the org-wide rows and those of its projects, as the lists do.
+     *
+     * @generated from protobuf rpc: GetSummary
+     */
+    getSummary(input: GetSummaryRequest, options?: RpcOptions): UnaryCall<GetSummaryRequest, SummaryResponse>;
 }
 /**
  * CA is the Certification Authority service of the tenants: the users and
@@ -458,5 +474,22 @@ export class CAClient implements ICAClient, ServiceInfo {
     signOCSP(input: OCSPRequest, options?: RpcOptions): UnaryCall<OCSPRequest, OCSPResponse> {
         const method = this.methods[20], opt = this._transport.mergeOptions(options);
         return stackIntercept<OCSPRequest, OCSPResponse>("unary", this._transport, method, opt, input);
+    }
+    // 
+    // Summary
+    // 
+
+    /**
+     * GetSummary returns the counts of the tenant's dashboard: the issuers
+     * by status, the certificates by status and by expiry, and the issuers
+     * that publish CRLs by the state of their CRL, for the org or for one
+     * project. Without a project, a member with project grants only gets
+     * the org-wide rows and those of its projects, as the lists do.
+     *
+     * @generated from protobuf rpc: GetSummary
+     */
+    getSummary(input: GetSummaryRequest, options?: RpcOptions): UnaryCall<GetSummaryRequest, SummaryResponse> {
+        const method = this.methods[21], opt = this._transport.mergeOptions(options);
+        return stackIntercept<GetSummaryRequest, SummaryResponse>("unary", this._transport, method, opt, input);
     }
 }

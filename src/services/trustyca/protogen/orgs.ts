@@ -15,6 +15,7 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { KVPair } from "./types";
 import { Event } from "./types";
+import { EventType_Enum } from "./types";
 import { Scope_Enum } from "./types";
 import { NextPage } from "./types";
 import { ItemStatus_Enum } from "./types";
@@ -682,7 +683,57 @@ export interface DeleteProjectRequest {
     ProjectID: string;
 }
 /**
- * EventsResponse returns list of Event
+ * ListEventsRequest specifies a page of the audit events of the org
+ * selected in the token, newest first (Orgs.ListEvents); the list pages by
+ * cursor only
+ *
+ * @generated from protobuf message pb.ListEventsRequest
+ */
+export interface ListEventsRequest {
+    /**
+     * ProjectID limits the result to the events of the project, in which
+     * the caller needs a role; empty lists the events of the org the caller
+     * may see
+     *
+     * @generated from protobuf field: string ProjectID = 1
+     */
+    ProjectID: string;
+    /**
+     * Type limits the result to one event type; Unknown returns every type
+     *
+     * @generated from protobuf field: pb.EventType.Enum Type = 2
+     */
+    Type: EventType_Enum;
+    /**
+     * After is the inclusive start of the CreatedAt range in RFC3339
+     * format; empty is unbounded
+     *
+     * @generated from protobuf field: string After = 3
+     */
+    After: string;
+    /**
+     * Before is the exclusive end of the CreatedAt range in RFC3339 format,
+     * later than After; empty is unbounded
+     *
+     * @generated from protobuf field: string Before = 4
+     */
+    Before: string;
+    /**
+     * Limit specifies maximum number of records to return
+     *
+     * @generated from protobuf field: uint32 Limit = 5
+     */
+    Limit: number;
+    /**
+     * Cursor continues the listing: empty or "initial" returns the first
+     * page, the Cursor of the previous NextPage the page after it
+     *
+     * @generated from protobuf field: string Cursor = 6
+     */
+    Cursor: string;
+}
+/**
+ * EventsResponse returns a page of events, newest first
  *
  * @generated from protobuf message pb.EventsResponse
  */
@@ -2463,6 +2514,93 @@ class DeleteProjectRequest$Type extends MessageType<DeleteProjectRequest> {
  */
 export const DeleteProjectRequest = new DeleteProjectRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ListEventsRequest$Type extends MessageType<ListEventsRequest> {
+    constructor() {
+        super("pb.ListEventsRequest", [
+            { no: 1, name: "ProjectID", kind: "scalar", localName: "ProjectID", jsonName: "ProjectID", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "Type", kind: "enum", localName: "Type", jsonName: "Type", T: () => ["pb.EventType.Enum", EventType_Enum] },
+            { no: 3, name: "After", kind: "scalar", localName: "After", jsonName: "After", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "Before", kind: "scalar", localName: "Before", jsonName: "Before", T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "Limit", kind: "scalar", localName: "Limit", jsonName: "Limit", T: 13 /*ScalarType.UINT32*/ },
+            { no: 6, name: "Cursor", kind: "scalar", localName: "Cursor", jsonName: "Cursor", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ListEventsRequest>): ListEventsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.ProjectID = "";
+        message.Type = 0;
+        message.After = "";
+        message.Before = "";
+        message.Limit = 0;
+        message.Cursor = "";
+        if (value !== undefined)
+            reflectionMergePartial<ListEventsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ListEventsRequest): ListEventsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string ProjectID */ 1:
+                    message.ProjectID = reader.string();
+                    break;
+                case /* pb.EventType.Enum Type */ 2:
+                    message.Type = reader.int32();
+                    break;
+                case /* string After */ 3:
+                    message.After = reader.string();
+                    break;
+                case /* string Before */ 4:
+                    message.Before = reader.string();
+                    break;
+                case /* uint32 Limit */ 5:
+                    message.Limit = reader.uint32();
+                    break;
+                case /* string Cursor */ 6:
+                    message.Cursor = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ListEventsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string ProjectID = 1; */
+        if (message.ProjectID !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.ProjectID);
+        /* pb.EventType.Enum Type = 2; */
+        if (message.Type !== 0)
+            writer.tag(2, WireType.Varint).int32(message.Type);
+        /* string After = 3; */
+        if (message.After !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.After);
+        /* string Before = 4; */
+        if (message.Before !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.Before);
+        /* uint32 Limit = 5; */
+        if (message.Limit !== 0)
+            writer.tag(5, WireType.Varint).uint32(message.Limit);
+        /* string Cursor = 6; */
+        if (message.Cursor !== "")
+            writer.tag(6, WireType.LengthDelimited).string(message.Cursor);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.ListEventsRequest
+ */
+export const ListEventsRequest = new ListEventsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class EventsResponse$Type extends MessageType<EventsResponse> {
     constructor() {
         super("pb.EventsResponse", [
@@ -2914,6 +3052,7 @@ export const Orgs = new ServiceType("pb.Orgs", [
     { name: "GetProject", options: { "es.api.allowed_roles": "Viewer,APIKey", "es.api.cli_cmd": "project get", "es.api.scopes": "project:read", "google.api.http": { post: "/pb.Orgs/GetProject", body: "*" } }, I: GetProjectRequest, O: Project },
     { name: "ListProjects", options: { "es.api.allowed_roles": "Viewer,APIKey", "es.api.cli_cmd": "project list", "es.api.scopes": "org:read", "google.api.http": { post: "/pb.Orgs/ListProjects", body: "*" } }, I: ListProjectsRequest, O: ProjectsResponse },
     { name: "DeleteProject", options: { "es.api.allowed_roles": "Admin", "es.api.cli_cmd": "project delete", "google.api.http": { post: "/pb.Orgs/DeleteProject", body: "*" } }, I: DeleteProjectRequest, O: Project },
+    { name: "ListEvents", options: { "es.api.allowed_roles": "Viewer,APIKey", "es.api.cli_cmd": "event list", "es.api.scopes": "org:read", "google.api.http": { post: "/pb.Orgs/ListEvents", body: "*" } }, I: ListEventsRequest, O: EventsResponse },
     { name: "CreateAPIKey", options: { "es.api.allowed_roles": "Admin", "es.api.cli_cmd": "api-key create", "google.api.http": { post: "/pb.Orgs/CreateAPIKey", body: "*" } }, I: CreateAPIKeyRequest, O: APIKey },
     { name: "ListAPIKeys", options: { "es.api.allowed_roles": "Admin", "es.api.cli_cmd": "api-key list", "google.api.http": { post: "/pb.Orgs/ListAPIKeys", body: "*" } }, I: ListAPIKeysRequest, O: APIKeysResponse },
     { name: "DeleteAPIKey", options: { "es.api.allowed_roles": "Admin", "es.api.cli_cmd": "api-key delete", "google.api.http": { post: "/pb.Orgs/DeleteAPIKey", body: "*" } }, I: APIKeyRequest, O: RecordsResult }

@@ -453,7 +453,9 @@ export interface Event {
      */
     Source: string;
     /**
-     * Metadata is a list of internal metadata associated with the event
+     * Metadata is additional data of the event. Orgs.ListEvents returns it
+     * to the members of the org, so an emitter records only values the
+     * tenant may see; no emitter records any today
      *
      * @generated from protobuf field: repeated pb.KVPair Metadata = 9
      */

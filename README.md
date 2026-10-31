@@ -112,13 +112,16 @@ src/app/
   core/
     api/              DI tokens, provideTrustyApi(), provideCaApi(), error mapping, paged resource
     auth/             AuthStore (signals), guards, return URL rules
-  layout/             console shell: toolbar, profile menu, navigation, session bar
+    tenant/           TenantStore: projects, project selection, issuer labels of the org
+  layout/             console shell: navigation, org switcher, project selector, profile menu, session bar
   features/
     auth/             landing, org selection, no-org and no-role notices, auth layout
     login/            providers, email sign-in, remember me
     ca/               lazy routes of the CA pages, with the CA services
-    dashboard/ issuers/ certificates/ account/ settings/
-  shared/             brand, SVG icons, page heading, empty state
+    org/              organization page: General, Projects (Members and API keys later)
+    dashboard/ issuers/ certificates/ profiles/ roots/ revocation/ lookup/ account/ settings/
+  shared/             brand, SVG icons, page heading, empty state, data table, status chip,
+                      PEM viewer, key-value list, confirm dialog, notify (snackbar), pipes, validators
   testing/            fakes of the services for the specs
 src/environments/     build-time fallback of the runtime configuration
 src/libts/            framework-free utilities: logging, JSON, strings, dates, storage
@@ -145,7 +148,7 @@ clients to `src/services/trustyca/protogen`, the `effectivesecurity/protoc-gen-g
 image writes the enum display names to `src/services/trustyca/rpc/enums.ts`, and
 `npm run format:fix` formats the result. Generated files are committed and never
 edited by hand; `protogen` is excluded from Prettier and ESLint. The committed
-clients match `trustyca` commit `f869a50`; regenerate after pulling the backend
+clients match `trustyca` commit `311a0a6`; regenerate after pulling the backend
 and commit the result.
 
 Every call to the `wfe` is gRPC-Web. The only REST calls are the two of a cookie

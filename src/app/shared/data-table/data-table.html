@@ -1,0 +1,101 @@
+<div class="data-table" [class.has-rows]="state() === 'rows'">
+  <table
+    mat-table
+    [dataSource]="items()"
+    [trackBy]="trackBy"
+    [class.hidden]="state() !== 'rows'"
+    [attr.aria-label]="label() || null"
+    [attr.aria-busy]="isLoading()"
+  >
+    @for (col of columns(); track col.name()) {
+      <ng-container [matColumnDef]="col.name()">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          [class.align-end]="col.align() === 'end'"
+          [style.width]="col.width() || null"
+        >
+          {{ col.header() }}
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row; let i = index"
+          [class.align-end]="col.align() === 'end'"
+          [class.primary]="col.primary()"
+        >
+          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row, index: i }" />
+        </td>
+      </ng-container>
+    }
+    <tr mat-header-row *matHeaderRowDef="columnNames(); sticky: true"></tr>
+    <tr
+      mat-row
+      *matRowDef="let row; columns: columnNames()"
+      [class.clickable]="clickable()"
+      [attr.tabindex]="clickable() ? 0 : null"
+      (click)="onRow(row)"
+      (keydown)="onRowKey($event, row)"
+    ></tr>
+  </table>
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="table-skeleton" role="status" aria-label="Loading">
+        @for (i of skeletonRows; track i) {
+          <div class="skeleton-row"></div>
+        }
+      </div>
+    }
+    @case ('error') {
+      <div class="table-error" role="alert">
+        <app-icon name="warning" />
+        <div class="table-error-text">
+          <strong>{{ uiError()?.title }}</strong>
+          <p>{{ uiError()?.detail }}</p>
+        </div>
+        <button mat-stroked-button type="button" (click)="tryAgain()">Try again</button>
+      </div>
+    }
+    @case ('empty') {
+      <app-empty-state
+        [icon]="emptyIcon()"
+        [title]="emptyTitle()"
+        [description]="emptyDescription()"
+      >
+        <ng-content select="[tableEmptyAction]" />
+      </app-empty-state>
+    }
+  }
+
+  @if (state() === 'rows') {
+    <footer class="table-footer">
+      <span class="table-count"
+        >{{ items().length }} loaded{{ more() ? ', more available' : '' }}</span
+      >
+      @if (uiError(); as err) {
+        <span class="footer-error" role="alert"><app-icon name="warning" />{{ err.title }}</span>
+      }
+      @if (pageSize() !== undefined) {
+        <label class="page-size"
+          >Rows per page
+          <select [value]="pageSize()" (change)="setPageSize($event)">
+            @for (size of pageSizes(); track size) {
+              <option [value]="size" [selected]="size === pageSize()">{{ size }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (more() || uiError()) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="load-more"
+          [disabled]="isLoading()"
+          (click)="uiError() ? tryAgain() : next()"
+        >
+          {{ isLoading() ? 'Loading…' : uiError() ? 'Try again' : 'Load more' }}
+        </button>
+      }
+    </footer>
+  }
+</div>
