@@ -311,9 +311,16 @@ Organization            /org                   (General, Projects, Members, API 
 profile menu            Account, Settings, Switch organization, Sign out
 ```
 
-The toolbar shows the breadcrumb, the org switcher, the project selector,
-the session state and the profile menu. The footer shows the server build
-from `Status.Version` and the console version.
+The sidebar shows the entries in two groups, "Workspace" (the CA pages) and
+"Administration" (Organization); an entry names the method it needs and is
+hidden once the caller scope denies it (the Organization tabs Members and
+API keys do the same with `GetMembers` and `ListAPIKeys`). The org switcher
+is the organization block at the top of the sidebar: a menu of
+`GetUserOrgs` (read when it first opens) that calls `SelectOrg` and lands
+on the home of the new org; "All organizations" opens the selection page.
+The toolbar shows the breadcrumb (org and section), the project selector,
+the role and the profile menu. The footer shows the server build from
+`Status.Version` and the console version.
 
 ## 8. Pages
 
@@ -387,7 +394,8 @@ PEM download. `RegisterRoot{Pem, Trust}` for an external anchor.
 
 - **List** `CA.ListCertificates{ProjectID, IKID, Profile, Status,
   ExpiringBefore, Limit, Cursor}`, newest first: label or subject, issuer
-  (label resolved from the issuer list by IKID), profile, serial, status,
+  (label resolved by IKID: `ListIssuers{IKIDs}` for the IKIDs of the page
+  that the cache does not hold, BE-6), profile, serial, status,
   not after with an "expires in" hint, project. Filters: issuer, profile,
   status, expiring within 7, 30, 90 days. Action: Issue certificate.
 - **Details** `CA.GetCertificate{ID}`: subject, issuer, serial, SKID, IKID,
@@ -427,10 +435,18 @@ and its AIA, CRL and OCSP URLs (`CIS.GetIssuer{IKID}`), fetch a CRL
 
 Tabs under `/org`:
 
-- **General**: `Orgs.GetOrg`, name and description (`UpdateOrg`, Admin);
-  Delete (Owner, typed confirmation).
-- **Projects**: `ListProjects`, register (alias, name, description), update,
-  delete (deactivate). The project selector refreshes.
+- **General**: `Orgs.GetOrg` as the shell loaded it, name and description
+  edited in place (`UpdateOrg`, Admin, the server's refusal next to the
+  form); Delete (Owner, the alias typed to confirm). `DeleteOrg`
+  deactivates the org, so the console then opens the org selection: the
+  token still names the deleted org, and the next org selection issues a
+  new one.
+- **Projects**: the list of the `TenantStore` (every page of
+  `ListProjects`), register (alias, name, description) and edit (name,
+  description) in a dialog that keeps the server's refusal, delete
+  (deactivate) with the alias typed to confirm; the store reloads and the
+  project selector follows, and a deleted selection goes back to all
+  projects. The inactive projects stay in the list and leave the selector.
 - **Members**: `GetMembers{ProjectID?, Scope?}` as memberships and pending
   invites, with scope (org-wide or project) and role; add (email, role,
   scope) with the server deciding invite versus grant; change role; remove;
@@ -455,7 +471,7 @@ per org, as `secdi` scopes them.
 The dashboard answers "is my PKI healthy and what needs attention". Tiles
 first, then detail panels:
 
-| Tile                   | Source                                                              |
+| Tile                   | Fallback source, without `CA.GetSummary` (see below)                |
 | ---------------------- | ------------------------------------------------------------------- |
 | Issuers                | `ListIssuers` by status: active, pending (needs activation), archived |
 | Certificates           | `ListCertificates{Status: Active}` first page and the issuance of the last 24 h and 7 days from `CreatedAt` of the newest pages |
@@ -468,12 +484,20 @@ Panels: expiring certificates (table with "renew by"), pending issuers with
 with the real chain (roots → intermediates → issuing, from `ParentID`),
 recent activity.
 
-The CA API has no counts and no event listing, so v1 derives the numbers
-from pages and labels a tile "100+" when `NextPage` is set. Two backend
-additions make the dashboard exact and cheap (section 17): a tenant summary
-RPC with counts by status and expiry bucket (BE-4) and an events listing
-for the activity panel (BE-3; the `Event` and `EventsResponse` messages
-exist, the RPC does not).
+The tiles read `CA.GetSummary` (BE-4, done in `trustyca`): one call per
+dashboard load, for the org or the selected project as `ProjectID`, which
+returns the issuers by status, the certificates by status, the Active
+certificates expiring within 7, 30 and 90 days (cumulative) and the
+issuers that publish CRLs by the state of their CRL (current, due, overdue,
+missing), with `At`, the time of the counts; a member with project grants
+only gets the org-wide rows and those of its projects. The counts are
+exact: every status and bucket is present, with zero when empty. Deriving
+the numbers from pages, with "100+" when `NextPage` is set, stays the
+fallback of a `wfe` without the method. The activity panel reads
+`Orgs.ListEvents` (BE-3, done in `trustyca`):
+the newest page of the org, or of the selected project as `ProjectID`, with
+`Type`, `After` and `Before` filters and cursor paging; a member with project
+grants only gets the org-wide events and those of its projects.
 
 Charts (issuance per day, expiry timeline) use a small SVG or Chart.js
 component behind an interface, so the chart library is a build-time choice.
@@ -503,8 +527,8 @@ is one.
 
 `CaService` passes a longer `timeout` option on the key operations (section
 2.1), which protobuf-ts sends as `grpc-timeout` (the `wfe` CORS allows the
-header); the server's own request timeout bounds it, so the deployment has
-to set that for the key operations (BE-7).
+header); the server sets no deadline of its own on a forwarded call, so that
+deadline is the only bound of a key operation (BE-7).
 
 ### 10.2 Services
 
@@ -530,11 +554,16 @@ service, and the template reads `value()`, `isLoading()`, `error()`.
 Cursor paging accumulates pages in a small `PagedResource<T>` helper
 (`items`, `nextCursor`, `loadMore()`, `reload()`).
 
-`TenantStore` keeps what every page needs and what is costly to re-fetch:
-the org, the projects, the caller scope, the issuer list (for IKID to label
-resolution), each as a resource with a TTL. It resets when the org changes
-and refreshes the affected entries after a mutation (register issuer →
-issuers; add member → members). This replaces `secdi`'s `StoreV2` and its
+`AuthStore` keeps the session: the user, the selected org (`GetOrg`) and
+its caller scope, loaded once per org. `TenantStore` keeps what every page
+of the org needs and what is costly to re-fetch: the projects (every page
+of `ListProjects`, as a resource keyed by the org, so an org switch reloads
+it and `invalidateProjects()` refreshes it after a mutation), the project
+selection (persisted per org in `AppUser`; a member with project grants
+only is kept on one of its projects), and the issuer labels by IKID that
+the CA pages collect (the issuer list of the filters and the trust map,
+and `ListIssuers{IKIDs}` per page of certificates, BE-6). The labels are
+dropped when the org changes. This replaces `secdi`'s `StoreV2` and its
 `Resource` class; the behaviour is the same, the mechanism is signals.
 
 ### 10.4 Errors
@@ -567,22 +596,31 @@ are committed, never edited, and excluded from lint and format. The
   colors are tokens: `active` green, `pending` amber, `archived` grey,
   `destroyed` and `revoked` red, `expired` orange, with the same palette in
   chips, tiles and charts.
-- **`app-data-table`**: wraps `MatTable` with column definitions, sticky
-  header, row link, sort where the API supports it (none in v1, so client
-  sort of the loaded pages only), paging footer, loading skeleton, empty and
-  error slots.
-- **`app-status-chip`**: one component for every enum with `enums.ts` display
-  names.
+- **`app-data-table`**: wraps `MatTable`; the columns are projected
+  `*appColumn` templates (`of` names the rows so the row is typed), the rows
+  come from an array or from a `PagedResource`, which also drives the
+  loading state, the failure and "Load more"; sticky header, row click,
+  page size, loading skeleton, empty state with an action slot, error state
+  with Retry. No sort in v1 (the API has none).
+- **`app-status-chip`**: one chip for every enum, with the display name
+  from `enums.ts` (`enumName`) and a tone (`active`, `pending`, `archived`,
+  `destroyed`, `revoked`, `expired`, `neutral`) that `status-tone.ts` derives
+  from the issuer, certificate and item statuses.
 - **`app-pem-viewer`**: monospace block, copy, download (`.pem` and DER via
   client-side decode), optional parsed summary (`pkijs` or a small ASN.1
   parser) for subject, SAN, validity, key usages.
 - **`app-kv-list`** for metadata and claims, editable variant for
   certificate metadata.
-- **`app-confirm-dialog`** with typed confirmation for destructive actions.
-- **Pipes**: `enumName`, `relativeTime`, `rfc3339Date`, `expiresIn`,
-  `fingerprint` (groups hex pairs), `scopeName`.
+- **`app-confirm-dialog`** (`ConfirmService.confirm()`) with typed
+  confirmation for destructive actions; `NotifyService` shows a `UiError`
+  as a snackbar with Retry when trying again may help.
+- **Pipes**: `enumName` (a number or a name the server hands out, such as
+  the `OrgRole` of the token), `relativeTime`, `rfc3339Date`, `expiresIn`,
+  `fingerprint` (groups hex pairs), `scopeName` (the project name of a
+  `ProjectID`, "Org-wide" when empty).
 - **Forms**: typed reactive forms; durations validated as Go durations
-  (`168h`, `30m`); OIDs as dotted numbers; PEM blocks by header.
+  (`168h`, `30m`); OIDs as dotted numbers; PEM blocks by header
+  (`parsePemBlocks` also feeds the PEM viewer).
 
 ## 12. Platform, storage and configuration
 
@@ -639,9 +677,9 @@ public/                  brand, favicon, config.js (dev default)
 src/
   app/
     core/                api/ (providers, ca-providers, tokens, errors, paged resource), auth/ (guards, AuthStore), tenant/ (TenantStore)
-    layout/              console shell
+    layout/              console shell: navigation, org switcher, project selector, profile menu
     features/            login, auth, ca (lazy routes of the CA pages), dashboard, issuers, roots, profiles,
-                         certificates, revocation, lookup, org, account, settings
+                         certificates, revocation, lookup, org (lazy routes of the tabs), account, settings
     testing/             fakes of the services for the specs
     shared/              components, pipes, forms, theme tokens
   libts/                 framework-free utilities (from secdi, trimmed)
@@ -717,12 +755,12 @@ which the copied folders already use.
 | BE-0 | Done in `trustyca` commit `0c02438`: the `wfe` CORS allows `http://localhost:4200`, the gRPC-Web and console headers, and exposes the gRPC trailers; deployed origins are added per environment | done |
 | BE-1 | Done in `trustyca` commits `1cd22a8` and `0c02438` ("Refactor Backend service"): `pb.CA` on the `wfe` for tenant tokens, every call forwarded to `privpb.Backend` with the org of the token | done |
 | BE-2 | Done in `trustyca` commit `c28383e`: `POST /v1/auth/org` selects the org of a cookie session and re-sets both cookies | done |
-| BE-3 | `Orgs.ListEvents{ProjectID?, Type?, Limit, Cursor}` returning `EventsResponse` (the messages exist) | dashboard activity, audit tab |
-| BE-4 | A tenant summary RPC: issuers by status, certificates by status and expiry bucket, CRLs due, for the org or a project | exact dashboard tiles |
-| BE-5 | `ProjectID` on `UpdateIssuerRequest`, `ActivateIssuerRequest`, `DeleteProfileRequest` (ROADMAP RM-004), so a project Admin can act on its rows | project-scoped admins |
-| BE-6 | `ListIssuers` and `ListProfiles` by a list of IDs or IKIDs, to resolve labels for a page of certificates in one call (today the console caches the full issuer list) | large tenants |
-| BE-7 | Confirm the request timeouts of the `wfe` and `backend` listeners (`timeout.request: 3s` in the dev configuration) cover a forwarded key generation in the crypto provider, or raise them for the forwarded methods | phase 4 |
-| BE-8 | Done in `0c02438` (ROADMAP RM-009): `OrgID` dropped from the public `pb.CA` requests (field 1 reserved); the stubs are regenerated | done |
+| BE-3 | Done in `trustyca` (2026-10-31): `Orgs.ListEvents{ProjectID?, Type?, After?, Before?, Limit, Cursor}` returning `EventsResponse`, cursor only, `Viewer,APIKey` with `org:read` | done |
+| BE-4 | Done in `trustyca`: `CA.GetSummary`, the issuers by status, the certificates by status and by expiry bucket (7, 30, 90 days), the CRLs by state (current, due, overdue, missing), for the org or a `ProjectID` | exact dashboard tiles |
+| BE-5 | Done in `trustyca` (2026-10-30, ROADMAP RM-004 closed): optional `ProjectID` on `UpdateIssuerRequest`, `ActivateIssuerRequest` and `DeleteProfileRequest`, so a project Admin acts on the rows of its project; the console sets it from the project selection as it does for `UpdateCertificateLabel` | done |
+| BE-6 | Done in `trustyca`: `ListIssuers{IDs, IKIDs}` and `ListProfiles{IDs, Labels}`, at most 500 each, resolve the issuers and profiles of a page of certificates in one call each | large tenants |
+| BE-7 | Done (verified 2026-10-30, no change): `timeout.request` is porto's shutdown drain timeout and the listeners set no write deadline; the gRPC server takes the console's `grpc-timeout` as the deadline the `ca` proxy forwards | done |
+| BE-8 | Done in `0c02438` (ROADMAP RM-006): `OrgID` dropped from the public `pb.CA` requests (field 1 reserved); the stubs are regenerated | done |
 | BE-9 | Done in `0c02438`: the `service CA` comment describes the tenant API on the `wfe` | done |
 
 The console does not need the JSON route of `pb.CA` on the `wfe` that the

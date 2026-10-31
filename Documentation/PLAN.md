@@ -1,6 +1,6 @@
 # Trusty CA Console Execution Plan
 
-Status: in progress, phases 0 to 2 done. The design is in [DESIGN.md](DESIGN.md); the backend it
+Status: in progress, phases 0 to 3 done. The design is in [DESIGN.md](DESIGN.md); the backend it
 targets is `../trustyca` (its `Documentation/design/DESIGN.md`,
 `Documentation/PLAN.md` and `ROADMAP.md`). Phases are ordered by
 dependency; each one ends with a working, tested console that is a strict
@@ -9,19 +9,33 @@ commitment. Sizes are rough: S under a day, M a few days, L a week or more.
 
 ## Where we are
 
-Phases 0, 1 and 2 are done (2026-10-23, uncommitted on `dissoupov` on top of
-`450854b`): the toolchain is clean, the framework-free layer (runtime
-configuration, platform, storage, `AppUser`, the rpc services and the
-gRPC-Web transport) is ported and tested, and the console signs users in
-against the server in both session modes and replaces the preview flag of
-the scaffold. `npm run typecheck`, `npm run lint`, `npm run format`,
-`npm test` (150 tests) and `npm run build` pass; the initial bundle is
-448 kB.
+Phases 0, 1 and 2 are done (2026-10-23, committed as `5fbf243`, PR #3): the
+toolchain is clean, the framework-free layer (runtime configuration,
+platform, storage, `AppUser`, the rpc services and the gRPC-Web transport)
+is ported and tested, and the console signs users in against the server in
+both session modes and replaces the preview flag of the scaffold.
 
-The stubs under `protogen` are regenerated from `trustyca` commit `f869a50`
-(`make proto` leaves the tree unchanged). The backend changes since
-`0c02438` that the console uses: BE-2 (`POST /v1/auth/org` re-sets the
-cookies of a cookie session, `c28383e`), the sign-out of a cookie session
+Phase 3 is done (2026-10-31, uncommitted on `dissoupov` on top of
+`5fbf243`): the `TenantStore` (projects, the project selection per org, the
+issuer labels), the navigation of DESIGN.md §7 with lazy stubs for the
+pages to come, the org switcher and the project selector in the shell, the
+shared building blocks (`app-data-table`, `app-status-chip`,
+`app-pem-viewer`, `app-kv-list`, `app-confirm-dialog`, `NotifyService`, the
+pipes and the validators) and the Organization page with its General and
+Projects tabs. `npm run typecheck`, `npm run lint`, `npm run format`,
+`npm test` (190 tests) and `npm run build` pass; the initial bundle is
+481 kB (budget warning at 500 kB; see "Decisions and notes").
+
+The stubs under `protogen` are regenerated from `trustyca` commit `311a0a6`
+(2026-10-31; `make proto` leaves the tree unchanged), which brings BE-3
+(`Orgs.ListEvents`), BE-4 (`CA.GetSummary`), BE-5 (`ProjectID` on
+`UpdateIssuerRequest`, `ActivateIssuerRequest` and `DeleteProfileRequest`)
+and BE-6 (`IDs` and `IKIDs` on `ListIssuersRequest`, `IDs` and `Labels` on
+`ListProfilesRequest`). `OrgsService.listEvents` and `CaService.getSummary`
+(which takes the project selection like the lists) are in the service layer
+and its contract specs; their pages are phase 9. The earlier backend
+changes the console uses: BE-2 (`POST /v1/auth/org` re-sets the cookies of
+a cookie session, `c28383e`), the sign-out of a cookie session
 (`DELETE /pb.Auth/RevokeToken` revokes the token and removes both cookies),
 token revocation that refuses a revoked token at once, the `provider` claim
 of the login token, OAuth errors landing on the redirect URI with `error`
@@ -42,7 +56,24 @@ services from Node (the browser extension was not connected): `Status.Version`,
 the transport sends is admitted. Still to do by hand in a browser: the login
 page, reload, remember me, and the cookie session on
 `https://app.local.trustyca.io:4200` (needs the `/etc/hosts` entries of
-README.md).
+README.md); and, for phase 3, the org switcher, the project selector and
+the Organization page in the browser.
+
+Phase 3 verification ran against the dev `trustycasvc` (`v0.1.23`,
+all-in-one) on 2026-10-31 with the framework-free services from Node, the
+way phases 1 and 2 did: the `local` sign-in, `GetUserOrgs`,
+`GetCallerScope` (Owner, `RoleSource` direct, every `pb.Orgs` method
+allowed), `GetOrg`, the request of the `TenantStore`
+(`ListProjects{Limit: 200, Cursor: "initial"}`, one page, no `NextPage`),
+`UpdateOrg` with the same values, `RegisterProject`, `UpdateProject` (the
+rename shows in the next list), `DeleteProject` (the project stays listed
+as Inactive: `console-smoke-mvwcq7az` remains in the dev database),
+`ListEvents{Limit: 5}` (newest first, with a cursor) and `CA.GetSummary`
+(every status and bucket present with zero counts, `At` set), then
+`RevokeToken` and `UNAUTHENTICATED` on the next call. The org switch was
+not exercised: the seeded user has one org. Still to do by hand in a
+browser: the switcher and the selector with two orgs and the dialogs of
+the Organization page.
 
 ## Backend prerequisites
 
@@ -54,11 +85,12 @@ need.
 | BE-0 | Done (`0c02438`): the `wfe` CORS allows `http://localhost:4200`, the gRPC-Web and console headers, and exposes the gRPC trailers; deployed origins are added per environment | done | nothing |
 | BE-1 | Done (`1cd22a8`, `0c02438`): `pb.CA` on the `wfe` for tenant tokens, every call forwarded to `privpb.Backend` with the org of the token; the backend roadmap still lists a two-app integration test through the `wfe` with a tenant token | done | nothing |
 | BE-2 | Done (`c28383e`): `POST /v1/auth/org` selects the org of a cookie session and re-sets the auth and CSRF cookies; `DELETE /pb.Auth/RevokeToken` signs a cookie session out | done | nothing |
-| BE-3 | `Orgs.ListEvents` over the existing `Event` and `EventsResponse` messages                               | M    | phase 9 activity |
-| BE-4 | Tenant summary RPC (counts by status, expiry buckets, CRLs due) for the dashboard                       | M    | phase 9 exact tiles |
-| BE-5 | `ProjectID` on `UpdateIssuerRequest`, `ActivateIssuerRequest`, `DeleteProfileRequest` (ROADMAP RM-004) | S    | project Admins in phases 4, 5 |
-| BE-7 | Confirm the request timeouts of the `wfe` and `backend` listeners (`timeout.request: 3s` in dev) cover a forwarded key generation in the crypto provider, or raise them for the forwarded methods | S | phase 4 |
-| BE-8 | Done (`0c02438`, ROADMAP RM-009): `OrgID` dropped from the public `pb.CA` requests; the stubs are regenerated | done | nothing |
+| BE-3 | Done in `trustyca` (2026-10-31, ROADMAP RM-010): `Orgs.ListEvents(ListEventsRequest) returns EventsResponse`, `Viewer,APIKey` with `org:read`; the request takes `ProjectID`, `Type`, `After`, `Before` (RFC3339), `Limit` and `Cursor` (cursor only: empty is the first page, there is no `Offset`); a member with project grants only gets the org-wide events and those of its projects, a `ProjectID` the events of that project. Stubs regenerated from `311a0a6` | done | nothing |
+| BE-4 | Done in `trustyca` (2026-10-31, ROADMAP RM-010): `CA.GetSummary(GetSummaryRequest) returns SummaryResponse`, `Viewer,APIKey` with `ca:read`, forwarded like every CA call; the request takes an optional `ProjectID`; the response carries `At`, `Issuers` (every `IssuerStatus` with its count), `Certificates` (every `CertificateStatus`), `Expiring` (cumulative buckets of 7, 30 and 90 `Days`; a certificate past its `NotAfter` is not expiring) and `Crls` (`Issuers`, `Current`, `Due`, `Overdue`, `Missing`). A member with project grants only gets the org-wide rows and those of its projects. Stubs regenerated from `311a0a6` | done | nothing |
+| BE-5 | Done in `trustyca` (`f2ef090`, 2026-10-30, ROADMAP RM-004 closed): optional `ProjectID` on `UpdateIssuerRequest`, `ActivateIssuerRequest` and `DeleteProfileRequest`, the scope the interceptor authorizes for a project Admin; the row must belong to it. Stubs regenerated from `311a0a6`; a page of a project Admin sets it from the project selection, as the pages set `ProjectID` on the create, update, revoke and label requests | done | nothing |
+| BE-6 | Done in `trustyca` (2026-10-31): `ListIssuersRequest` takes `IDs` and `IKIDs` (the key identifiers the certificates carry), `ListProfilesRequest` takes `IDs` and `Labels`, at most 500 each, combined with the other filters and the scope of the request; the issuers and profiles of a page of certificates come in one call each. Stubs regenerated from `311a0a6` | done | nothing |
+| BE-7 | Done (verified in `trustyca` on 2026-10-30, no change): `timeout.request` is porto's shutdown drain timeout, not a per-request deadline, and the listeners set no write deadline; a gRPC-Web call is served by the gRPC server, which takes the `grpc-timeout` of the console as the deadline the `ca` proxy forwards, so the 60 s deadline of the key operations is the only bound (`trustyca` codemap, `server/service/ca`) | done | nothing |
+| BE-8 | Done (`0c02438`, ROADMAP RM-006): `OrgID` dropped from the public `pb.CA` requests; the stubs are regenerated | done | nothing |
 | BE-9 | Done (`0c02438`): the `service CA` comment describes the tenant API on the `wfe` | done | nothing |
 
 The JSON route for `pb.CA` on the `wfe` that the backend plan lists as a
@@ -222,30 +254,69 @@ to `/login`; the same on `https://app.local.trustyca.io:4200` in cookie mode.
 Goal: the org and project context is in place and every page after this one
 is built from the same parts. Needs only `pb.Orgs`.
 
-- [ ] `TenantStore`: projects (`ListProjects`), issuer label map (filled in
-      phase 4); reset on org change; invalidation helpers. The org (`GetOrg`)
-      and the caller scope are in `AuthStore` since phase 2, loaded once per
-      org by `loadSession()`.
-- [ ] Toolbar: org switcher menu (`GetUserOrgs`, `SelectOrg`; phase 2 has
-      the `/auth/select-org` page behind "Switch organization"), project selector
-      ("All projects" when the caller has an org-wide role; granted projects
-      only otherwise), persisted per org in `AppUser`.
-- [ ] Navigation entries of DESIGN.md §7 with routes and lazy stubs;
-      `can()` hides the organization entries a Viewer cannot open.
-- [ ] Shared: `app-data-table` with cursor paging, `app-status-chip`,
-      `app-pem-viewer` (copy, download `.pem`; DER later), `app-kv-list`,
-      `app-confirm-dialog` (typed confirmation), `enumName`, `relativeTime`,
-      `rfc3339Date`, `expiresIn`, `fingerprint` pipes; Go duration, OID and
-      PEM validators; snackbar service for `UiError`.
-- [ ] Organization page: General (view, `UpdateOrg`, `DeleteOrg` with typed
-      confirmation), Projects (list, register, update, delete).
-- [ ] Tests: store invalidation on org switch; table paging with a fake
-      paged service; pipes and validators; organization forms with a fake
-      `IOrgsService`.
+- [x] `TenantStore` (`core/tenant/tenant.store.ts`): the projects as a
+      resource keyed by the org (every page of `ListProjects`, `Limit` 200,
+      `Cursor` from `initial`), so an org switch reloads them and
+      `invalidateProjects()` refreshes them after a mutation; the project
+      selection from `AppUser` (per org) with `selectProject()`,
+      `selectableProjects` (the active projects for an org-wide role, the
+      granted ones for a member with project grants only, who is kept on
+      one of them), `selectionLabel`, `scopeLabel()` ("Org-wide" for an
+      empty `ProjectID`); the issuer labels by IKID
+      (`rememberIssuerLabels()`, `issuerLabel()`), dropped on an org switch;
+      `reset()`. The org (`GetOrg`) and the caller scope stay in
+      `AuthStore`, which gained `switchOrg()`, `orgUpdated()` and
+      `refreshOrg()`.
+- [x] Shell: the org block of the sidebar opens the org switcher menu
+      (`GetUserOrgs` read on first open, `SelectOrg` through
+      `AuthStore.switchOrg()`, "All organizations" to `/auth/select-org`);
+      the toolbar has the project selector ("All projects" only for an
+      org-wide role, "Manage projects" to `/org/projects`) and the
+      breadcrumb shows the org and the section. The role badge now shows
+      the role: the token carries the role name (`Owner`) and the generated
+      `getRoleDisplayName` knew the number only, so phase 2 showed
+      "Unknown"; `enumName()` parses the names.
+- [x] Navigation of DESIGN.md §7 in two groups, "Workspace" (Dashboard,
+      Issuers, Certificates, Profiles, Trust anchors, Revocation, Lookup)
+      and "Administration" (Organization); lazy stubs for Profiles, Trust
+      anchors, Revocation and Lookup on the CA routes; an entry names the
+      method it needs and hides once the caller scope denies it
+      (Organization needs `GetOrg`; the Members and API keys tabs need
+      `GetMembers` and `ListAPIKeys`).
+- [x] Shared: `app-data-table` (projected `*appColumn` templates typed by
+      `of`, rows from an array or a `PagedResource` that also drives the
+      loading state, the failure and "Load more"; page size, row click,
+      skeleton, empty state with an action slot, error state with Retry),
+      `app-status-chip` with `status-tone.ts`, `app-pem-viewer` (copy,
+      download `.pem`, block summary; DER later), `app-kv-list`,
+      `app-confirm-dialog` behind `ConfirmService.confirm()` (typed
+      confirmation), `NotifyService` (snackbar for `UiError` with Retry);
+      pipes `enumName`, `relativeTime`, `rfc3339Date`, `expiresIn`,
+      `fingerprint`, `scopeName` (`shared/pipes`, with `time.ts` helpers);
+      validators `goDuration`, `oid`, `pem` and `parsePemBlocks`
+      (`shared/forms/validators.ts`); `downloadText()` (`shared/files`).
+- [x] Organization page (`features/org`, lazy): General (the org of the
+      shell, Edit in place with `UpdateOrg` for an Admin, the server's
+      refusal next to the form; Delete for an Owner with the alias typed,
+      then the org selection), Projects (the list of the store, Register and
+      Edit in a dialog that keeps the server's refusal, Delete with the
+      alias typed; the store reloads, a deleted selection goes back to all
+      projects), Members and API keys as "Coming soon" tabs for phase 8.
+- [x] Tests (190, from 159): `TenantStore` (pages, selection per org, the
+      project-only member, invalidation, reset, failure), `app-data-table`
+      with a host and a real `pagedResource`, pipes and validators, the
+      shell (navigation and its hiding, the org switch from the menu, the
+      project selection per org, the project-only member), the Organization
+      page (tabs per scope, edit and refusal, delete with typed
+      confirmation, projects list, register, edit, delete) with the fakes
+      of `test-api.ts`, which gained the org, the projects and a caller
+      scope with the methods of an Owner (`callerScope()`), and run Material
+      without animations (`MATERIAL_ANIMATIONS`).
 
 Verification: switch between two orgs of the dev database and see the
 project selector and the organization page follow; create and rename a
-project.
+project. The calls ran from Node on 2026-10-31 (see "Where we are"); the
+browser pass with two orgs is still to do by hand.
 
 ## Phase 4: issuers and trust anchors (L)
 
@@ -377,9 +448,15 @@ Goal: the landing page reports the health of the tenant's PKI.
       panel; the trust map built from `ParentID`.
 - [ ] Charts behind a `ChartComponent` interface (SVG first; Chart.js only
       if a chart needs it).
-- [ ] When BE-4 lands: replace the derived tiles with the summary RPC. When
-      BE-3 lands: the recent activity panel from `ListEvents` and an Audit
-      tab under Organization.
+- [ ] Tiles from `CA.GetSummary` (BE-4, done in `trustyca`): the issuer,
+      certificate, expiring (7, 30, 90 days) and CRL counts of the org or
+      of the selected project as `ProjectID`, exact, with `At` as the
+      "as of" time; the derived tiles of the first bullet stay the fallback
+      of a `wfe` without the method.
+- [ ] The recent activity panel from `Orgs.ListEvents` (BE-3, done in
+      `trustyca`) and an Audit tab under Organization: newest first, the
+      `Type`, `After` and `Before` filters, cursor paging, the selected
+      project as `ProjectID`.
 - [ ] Tests: tile derivation from fixture pages; due computations shared
       with phase 7.
 
@@ -395,8 +472,11 @@ attention" rows.
 - [ ] Accessibility pass: focus order in the stepper and dialogs, table
       headers, chip contrast, keyboard paging.
 - [ ] Performance: lazy chunks per feature, bundle budgets kept, cursor
-      paging only, no full-list loads except the issuer label cache (and
-      BE-6 when it exists).
+      paging only, no full-list loads: the issuer labels of a page of
+      certificates come from `ListIssuers{IKIDs}` and the profiles from
+      `ListProfiles{Labels}` (BE-6, done in `trustyca`), cached per key in
+      `TenantStore`; the full issuer list stays for the filters and the
+      trust map.
 - [ ] Playwright smoke suite against a dev server with the `local` provider:
       sign in, select org, register issuer, register profile, issue, revoke,
       publish CRL, sign out.
@@ -467,3 +547,14 @@ smoke suite passes against it.
 - Services are tested against `FakeTransport`, pages and stores against the
   fakes of `src/app/testing/test-api.ts`; `vi.mock` of project files is not
   available under Angular's unit-test builder.
+- The initial bundle grew from 448 kB to 481 kB in phase 3 while the shell
+  stays lazy: the generated enum tables (`rpc/enums.ts`, 9 kB) are in the
+  initial chunk because `AuthService` imports the IDP names, and `enumName`
+  now keeps every table alive; the rest is Angular core (`resource`,
+  `contentChildren`, `model`) and the rxjs schedulers of the CDK table that
+  the lazy chunks share with the initial one. Phase 10 decides between
+  splitting `enums.ts` per enum in the generator and raising the budget.
+- `DeleteOrg` deactivates the org while the token still names it, so the
+  console opens the org selection afterwards; the next `SelectOrg` issues a
+  token for another org. The server has no call that drops the org of a
+  token.

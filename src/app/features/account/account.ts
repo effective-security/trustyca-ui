@@ -3,12 +3,12 @@ import { ChangeDetectionStrategy, Component, computed, inject, resource } from '
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { Scope_Enum } from 'src/services/trustyca/protogen/types';
-import { getRoleDisplayName } from 'src/services/trustyca/rpc/enums';
 import { Membership } from 'src/services/trustyca/protogen/orgs';
 import { toUiError } from '../../core/api/errors';
 import { ORGS_SERVICE } from '../../core/api/tokens';
 import { AuthStore } from '../../core/auth/auth.store';
 import { PageHeading } from '../../shared/page-heading/page-heading';
+import { enumName } from '../../shared/pipes/enum-name.pipe';
 
 /** The profile of the token, the grants in the selected org and the session */
 @Component({
@@ -146,7 +146,7 @@ export class Account {
   protected readonly error = computed(() => toUiError(this.memberships.error()).detail);
 
   protected roleName(role: number | string): string {
-    return getRoleDisplayName(role);
+    return enumName('Role', role);
   }
 
   protected scopeName(g: Membership): string {

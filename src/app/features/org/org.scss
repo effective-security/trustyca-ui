@@ -1,0 +1,80 @@
+// Shared by the tabs of the organization page
+:host {
+  display: grid;
+  gap: 20px;
+}
+.panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.panel-tools button app-icon,
+.register-button app-icon {
+  width: 15px;
+  height: 15px;
+  margin-right: 8px;
+}
+.panel-note {
+  margin: 0;
+  padding: 20px 24px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.panel-spacer {
+  height: 20px;
+}
+.org-form {
+  display: grid;
+  gap: 8px;
+  padding: 20px 24px 24px;
+  max-width: 560px;
+}
+.form-error {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #8a2f29;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.danger-zone {
+  border-color: #ead2cf;
+}
+.danger-zone h2 {
+  color: #8a2f29;
+}
+.danger-button {
+  flex-shrink: 0;
+  --mat-button-outlined-label-text-color: #8a2f29;
+  --mat-button-outlined-outline-color: #e2b8b4;
+}
+.row-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.row-muted {
+  color: var(--muted);
+}
+.row-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+.row-actions app-icon {
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 600px) {
+  .panel-header {
+    flex-wrap: wrap;
+  }
+  .org-form {
+    padding: 16px 18px 20px;
+  }
+}

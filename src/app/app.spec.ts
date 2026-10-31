@@ -3,9 +3,18 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Token, UserInfo } from 'src/models/Auth';
 import { PERSISTED_AFTER_AUTH_ROUTE, PERSISTED_USER_AUTH_TOKEN } from 'src/services/storage';
-import { Role_Enum } from 'src/services/trustyca/protogen/orgs';
+import { CallerScope } from 'src/services/trustyca/protogen/auth';
+import { Role_Enum, RoleSource_Enum } from 'src/services/trustyca/protogen/orgs';
 import { routes } from './app.routes';
-import { clearStorage, createTestApi, signIn, TEST_PREFIX, TestApi } from './testing/test-api';
+import {
+  allowMethods,
+  callerScope,
+  clearStorage,
+  createTestApi,
+  signIn,
+  TEST_PREFIX,
+  TestApi,
+} from './testing/test-api';
 
 describe('Console navigation', () => {
   let api: TestApi;
@@ -18,6 +27,16 @@ describe('Console navigation', () => {
   const url = () => TestBed.inject(Router).url;
   const text = (harness: RouterTestingHarness, selector: string) =>
     harness.routeNativeElement?.querySelector(selector)?.textContent?.trim();
+  /** Lets the fakes answer and renders the shell and the overlays */
+  const flush = async (harness: RouterTestingHarness) => {
+    await harness.fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve));
+    harness.detectChanges();
+  };
+  const menuItems = (selector: string) =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>(selector));
+  const itemLabel = (item: HTMLElement) =>
+    item.querySelector('.switcher-text')?.firstChild?.textContent?.trim();
 
   beforeEach(() => {
     clearStorage();
@@ -87,7 +106,104 @@ describe('Console navigation', () => {
     expect(shell.querySelector('.profile-label')?.textContent).toContain('user1@trustyca.io');
     expect(shell.querySelector('.workspace-label')?.textContent).toContain('Acme');
     expect(shell.querySelector('.server-version')?.textContent).toContain('v0.1.12-test');
+    expect(shell.querySelector('.preview-badge')?.textContent).toContain('Owner');
+    expect(shell.querySelector('.breadcrumb')?.textContent).toContain('Dashboard');
     expect(api.auth.getCallerScope).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the navigation groups and hides an entry the caller scope denies', async () => {
+    signIn(api.user);
+    const harness = await RouterTestingHarness.create('/dashboard');
+    await flush(harness);
+    const shell = harness.fixture.nativeElement as HTMLElement;
+    const labels = () =>
+      Array.from(shell.querySelectorAll('.nav-link span')).map((e) => e.textContent);
+    expect(labels()).toEqual([
+      'Dashboard',
+      'Issuers',
+      'Certificates',
+      'Profiles',
+      'Trust anchors',
+      'Revocation',
+      'Lookup',
+      'Organization',
+    ]);
+    expect(Array.from(shell.querySelectorAll('.nav-label')).map((e) => e.textContent)).toEqual([
+      'Workspace',
+      'Administration',
+    ]);
+
+    api.auth.scope = callerScope(Role_Enum.Viewer, ['/pb.CA/ListIssuers']);
+    signIn(api.user, 'org2', 'Viewer');
+    await flush(harness);
+    expect(labels()).not.toContain('Organization');
+    expect(shell.querySelector('.preview-badge')?.textContent).toContain('Viewer');
+  });
+
+  it('switches the org from the sidebar menu', async () => {
+    signIn(api.user, 'org1');
+    const harness = await RouterTestingHarness.create('/issuers');
+    await flush(harness);
+    const shell = harness.fixture.nativeElement as HTMLElement;
+    expect(api.orgs.getUserOrgs).not.toHaveBeenCalled();
+    shell.querySelector<HTMLButtonElement>('.workspace-label')?.click();
+    await flush(harness);
+    expect(api.orgs.getUserOrgs).toHaveBeenCalledTimes(1);
+    const items = menuItems('.org-item');
+    expect(items.map(itemLabel)).toEqual(['Acme', 'Globex']);
+    expect(items[0].classList.contains('current')).toBe(true);
+    expect(items[1].textContent).toContain('Viewer');
+
+    items[1].click();
+    await flush(harness);
+    expect(api.auth.selectOrg).toHaveBeenCalledWith('org2', false);
+    expect(api.user.orgId).toBe('org2');
+    expect(url()).toBe('/dashboard');
+  });
+
+  it('selects the project in the toolbar and keeps the selection per org', async () => {
+    signIn(api.user, 'org1');
+    const harness = await RouterTestingHarness.create('/dashboard');
+    await flush(harness);
+    const shell = harness.fixture.nativeElement as HTMLElement;
+    const label = () => shell.querySelector('.project-label')?.textContent?.trim();
+    expect(label()).toBe('All projects');
+
+    shell.querySelector<HTMLButtonElement>('.project-button')?.click();
+    await flush(harness);
+    const items = menuItems('.project-item');
+    expect(items.map(itemLabel)).toEqual(['All projects', 'Payments', 'Web']);
+    expect(items[0].classList.contains('current')).toBe(true);
+    items[1].click();
+    await flush(harness);
+    expect(api.user.projectId).toBe('p1');
+    expect(label()).toBe('Payments');
+
+    signIn(api.user, 'org2');
+    await flush(harness);
+    expect(label()).toBe('All projects');
+    signIn(api.user, 'org1');
+    await flush(harness);
+    expect(label()).toBe('Payments');
+  });
+
+  it('offers a member with project grants only its projects', async () => {
+    api.auth.scope = CallerScope.create({
+      OrgID: 'org1',
+      Role: Role_Enum.Viewer,
+      RoleSource: RoleSource_Enum.Project,
+      ProjectRoles: { p2: 'Admin' },
+      Methods: allowMethods('/pb.CA/ListIssuers'),
+    });
+    signIn(api.user, 'org1', 'Viewer');
+    const harness = await RouterTestingHarness.create('/dashboard');
+    await flush(harness);
+    expect(api.user.projectId).toBe('p2');
+    const shell = harness.fixture.nativeElement as HTMLElement;
+    expect(shell.querySelector('.project-label')?.textContent?.trim()).toBe('Web');
+    shell.querySelector<HTMLButtonElement>('.project-button')?.click();
+    await flush(harness);
+    expect(menuItems('.project-item').map(itemLabel)).toEqual(['Web']);
   });
 
   it('signs out: revokes the token, forgets the user and protects the next navigation', async () => {

@@ -55,8 +55,9 @@ export class SelectOrg {
     }
     this.busyId.set(org.OrgID);
     try {
-      await this.session.selectOrg(org.OrgID);
-      await this.router.navigateByUrl(await this.session.completeSignIn(), { replaceUrl: true });
+      await this.router.navigateByUrl(await this.session.switchOrg(org.OrgID), {
+        replaceUrl: true,
+      });
     } catch (err) {
       this.failure.set(toUiError(err).detail);
     } finally {

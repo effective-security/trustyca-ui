@@ -204,6 +204,14 @@ export interface ActivateIssuerRequest {
      * @generated from protobuf field: string Root = 5
      */
     Root: string;
+    /**
+     * ProjectID of the issuer's project. A caller whose role is granted
+     * in the project only must name it, since the request is authorized at
+     * that scope; the issuer must belong to it.
+     *
+     * @generated from protobuf field: string ProjectID = 6
+     */
+    ProjectID: string;
 }
 /**
  * GetIssuerRequest specifies an issuer by ID, label or IKID
@@ -281,6 +289,23 @@ export interface ListIssuersRequest {
      * @generated from protobuf field: string Cursor = 7
      */
     Cursor: string;
+    /**
+     * IDs limits the result to the issuers with the IDs, at most 500: the
+     * issuers of a page of certificates in one call. An issuer outside the
+     * scope of the request is not returned.
+     *
+     * @generated from protobuf field: repeated string IDs = 8
+     */
+    IDs: string[];
+    /**
+     * IKIDs limits the result to the issuers with the key identifiers, as
+     * the certificates they issued carry them (the SKID of the issuer), at
+     * most 500: the labels of the issuers of a page of certificates in one
+     * call
+     *
+     * @generated from protobuf field: repeated string IKIDs = 9
+     */
+    IKIDs: string[];
 }
 /**
  * IssuersResponse returns list of issuers
@@ -324,6 +349,14 @@ export interface UpdateIssuerRequest {
      * @generated from protobuf field: pb.IssuerStatus.Enum Status = 4
      */
     Status: IssuerStatus_Enum;
+    /**
+     * ProjectID of the issuer's project. A caller whose role is granted
+     * in the project only must name it, since the request is authorized at
+     * that scope; the issuer must belong to it.
+     *
+     * @generated from protobuf field: string ProjectID = 5
+     */
+    ProjectID: string;
 }
 // 
 // Roots
@@ -477,6 +510,21 @@ export interface ListProfilesRequest {
      * @generated from protobuf field: string Cursor = 6
      */
     Cursor: string;
+    /**
+     * IDs limits the result to the profiles with the IDs, at most 500. A
+     * profile outside the scope of the request is not returned.
+     *
+     * @generated from protobuf field: repeated string IDs = 7
+     */
+    IDs: string[];
+    /**
+     * Labels limits the result to the profiles with the labels, in every
+     * scope the request covers, at most 500: the profiles of a page of
+     * certificates in one call
+     *
+     * @generated from protobuf field: repeated string Labels = 8
+     */
+    Labels: string[];
 }
 /**
  * ProfilesResponse returns list of profiles
@@ -508,6 +556,14 @@ export interface DeleteProfileRequest {
      * @generated from protobuf field: string ID = 2
      */
     ID: string;
+    /**
+     * ProjectID of the profile's project. A caller whose role is granted
+     * in the project only must name it, since the request is authorized at
+     * that scope; the profile must belong to it.
+     *
+     * @generated from protobuf field: string ProjectID = 3
+     */
+    ProjectID: string;
 }
 // 
 // Certificates
@@ -962,6 +1018,171 @@ export interface OCSPResponse {
      */
     Der: Uint8Array;
 }
+// 
+// Summary
+// 
+
+/**
+ * GetSummaryRequest specifies the scope of the summary
+ *
+ * @generated from protobuf message pb.GetSummaryRequest
+ */
+export interface GetSummaryRequest {
+    /**
+     * ProjectID limits the summary to the project; empty summarizes the
+     * org-wide rows and the projects the caller may read. An API key
+     * restricted to a project gets its project.
+     *
+     * @generated from protobuf field: string ProjectID = 2
+     */
+    ProjectID: string;
+}
+/**
+ * SummaryResponse returns the counts of the rows of the scope at the time
+ * of the request. The counts are exact: a count of the certificates of a
+ * scope reads their index entries, so it grows with the tenant.
+ *
+ * @generated from protobuf message pb.SummaryResponse
+ */
+export interface SummaryResponse {
+    /**
+     * At is the time of the counts, RFC3339
+     *
+     * @generated from protobuf field: string At = 1
+     */
+    At: string;
+    /**
+     * Issuers counts the issuers by lifecycle status; every status is
+     * reported, with a zero count when the scope has none
+     *
+     * @generated from protobuf field: repeated pb.IssuerStatusCount Issuers = 2
+     */
+    Issuers: IssuerStatusCount[];
+    /**
+     * Certificates counts the certificates by status; every status is
+     * reported, with a zero count when the scope has none
+     *
+     * @generated from protobuf field: repeated pb.CertificateStatusCount Certificates = 3
+     */
+    Certificates: CertificateStatusCount[];
+    /**
+     * Expiring counts the Active certificates whose validity ends within
+     * the days after At. The buckets are cumulative: 7, 30 and 90 days. A
+     * certificate past its NotAfter is expired, not expiring, whatever its
+     * status.
+     *
+     * @generated from protobuf field: repeated pb.ExpiryBucket Expiring = 4
+     */
+    Expiring: ExpiryBucket[];
+    /**
+     * Crls counts the issuers that publish CRLs by the state of their CRL
+     *
+     * @generated from protobuf field: pb.CrlCounts Crls = 5
+     */
+    Crls?: CrlCounts;
+}
+/**
+ * IssuerStatusCount is the number of issuers of a lifecycle status
+ *
+ * @generated from protobuf message pb.IssuerStatusCount
+ */
+export interface IssuerStatusCount {
+    /**
+     * Status of the issuers
+     *
+     * @generated from protobuf field: pb.IssuerStatus.Enum Status = 1
+     */
+    Status: IssuerStatus_Enum;
+    /**
+     * Count of the issuers of the status
+     *
+     * @generated from protobuf field: uint32 Count = 2
+     */
+    Count: number;
+}
+/**
+ * CertificateStatusCount is the number of certificates of a status
+ *
+ * @generated from protobuf message pb.CertificateStatusCount
+ */
+export interface CertificateStatusCount {
+    /**
+     * Status of the certificates
+     *
+     * @generated from protobuf field: pb.CertificateStatus.Enum Status = 1
+     */
+    Status: CertificateStatus_Enum;
+    /**
+     * Count of the certificates of the status
+     *
+     * @generated from protobuf field: uint32 Count = 2
+     */
+    Count: number;
+}
+/**
+ * ExpiryBucket is the number of Active certificates whose validity ends
+ * within a number of days after the time of the summary
+ *
+ * @generated from protobuf message pb.ExpiryBucket
+ */
+export interface ExpiryBucket {
+    /**
+     * Days after the time of the summary
+     *
+     * @generated from protobuf field: uint32 Days = 1
+     */
+    Days: number;
+    /**
+     * Count of the Active certificates that expire within the days
+     *
+     * @generated from protobuf field: uint32 Count = 2
+     */
+    Count: number;
+}
+/**
+ * CrlCounts counts the issuers that publish CRLs, the Active and Archived
+ * issuers whose certificate is valid, by the state of their current CRL at
+ * the time of the summary: Issuers is Current, Due, Overdue and Missing
+ * together.
+ *
+ * @generated from protobuf message pb.CrlCounts
+ */
+export interface CrlCounts {
+    /**
+     * Issuers is the number of issuers that publish CRLs
+     *
+     * @generated from protobuf field: uint32 Issuers = 1
+     */
+    Issuers: number;
+    /**
+     * Current is the number of CRLs whose next update is later than the
+     * renewal period of their issuer
+     *
+     * @generated from protobuf field: uint32 Current = 2
+     */
+    Current: number;
+    /**
+     * Due is the number of CRLs whose next update is within the renewal
+     * period of their issuer; the renewal task publishes them on its next
+     * run
+     *
+     * @generated from protobuf field: uint32 Due = 3
+     */
+    Due: number;
+    /**
+     * Overdue is the number of CRLs whose next update has passed: relying
+     * parties see a stale CRL until it is published
+     *
+     * @generated from protobuf field: uint32 Overdue = 4
+     */
+    Overdue: number;
+    /**
+     * Missing is the number of issuers that have published no CRL yet
+     *
+     * @generated from protobuf field: uint32 Missing = 5
+     */
+    Missing: number;
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class RegisterIssuerRequest$Type extends MessageType<RegisterIssuerRequest> {
     constructor() {
@@ -1203,7 +1424,8 @@ class ActivateIssuerRequest$Type extends MessageType<ActivateIssuerRequest> {
             { no: 2, name: "ID", kind: "scalar", localName: "ID", jsonName: "ID", T: 9 /*ScalarType.STRING*/, options: { "es.api.required": true } },
             { no: 3, name: "Certificate", kind: "scalar", localName: "Certificate", jsonName: "Certificate", T: 9 /*ScalarType.STRING*/, options: { "es.api.required": true } },
             { no: 4, name: "Intermediates", kind: "scalar", localName: "Intermediates", jsonName: "Intermediates", T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "Root", kind: "scalar", localName: "Root", jsonName: "Root", T: 9 /*ScalarType.STRING*/ }
+            { no: 5, name: "Root", kind: "scalar", localName: "Root", jsonName: "Root", T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "ProjectID", kind: "scalar", localName: "ProjectID", jsonName: "ProjectID", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ActivateIssuerRequest>): ActivateIssuerRequest {
@@ -1212,6 +1434,7 @@ class ActivateIssuerRequest$Type extends MessageType<ActivateIssuerRequest> {
         message.Certificate = "";
         message.Intermediates = "";
         message.Root = "";
+        message.ProjectID = "";
         if (value !== undefined)
             reflectionMergePartial<ActivateIssuerRequest>(this, message, value);
         return message;
@@ -1232,6 +1455,9 @@ class ActivateIssuerRequest$Type extends MessageType<ActivateIssuerRequest> {
                     break;
                 case /* string Root */ 5:
                     message.Root = reader.string();
+                    break;
+                case /* string ProjectID */ 6:
+                    message.ProjectID = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1257,6 +1483,9 @@ class ActivateIssuerRequest$Type extends MessageType<ActivateIssuerRequest> {
         /* string Root = 5; */
         if (message.Root !== "")
             writer.tag(5, WireType.LengthDelimited).string(message.Root);
+        /* string ProjectID = 6; */
+        if (message.ProjectID !== "")
+            writer.tag(6, WireType.LengthDelimited).string(message.ProjectID);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1347,7 +1576,9 @@ class ListIssuersRequest$Type extends MessageType<ListIssuersRequest> {
             { no: 4, name: "Type", kind: "enum", localName: "Type", jsonName: "Type", T: () => ["pb.AuthorityType.Enum", AuthorityType_Enum] },
             { no: 5, name: "Limit", kind: "scalar", localName: "Limit", jsonName: "Limit", T: 13 /*ScalarType.UINT32*/ },
             { no: 6, name: "Offset", kind: "scalar", localName: "Offset", jsonName: "Offset", T: 13 /*ScalarType.UINT32*/ },
-            { no: 7, name: "Cursor", kind: "scalar", localName: "Cursor", jsonName: "Cursor", T: 9 /*ScalarType.STRING*/ }
+            { no: 7, name: "Cursor", kind: "scalar", localName: "Cursor", jsonName: "Cursor", T: 9 /*ScalarType.STRING*/ },
+            { no: 8, name: "IDs", kind: "scalar", localName: "IDs", jsonName: "IDs", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "IKIDs", kind: "scalar", localName: "IKIDs", jsonName: "IKIDs", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ListIssuersRequest>): ListIssuersRequest {
@@ -1358,6 +1589,8 @@ class ListIssuersRequest$Type extends MessageType<ListIssuersRequest> {
         message.Limit = 0;
         message.Offset = 0;
         message.Cursor = "";
+        message.IDs = [];
+        message.IKIDs = [];
         if (value !== undefined)
             reflectionMergePartial<ListIssuersRequest>(this, message, value);
         return message;
@@ -1384,6 +1617,12 @@ class ListIssuersRequest$Type extends MessageType<ListIssuersRequest> {
                     break;
                 case /* string Cursor */ 7:
                     message.Cursor = reader.string();
+                    break;
+                case /* repeated string IDs */ 8:
+                    message.IDs.push(reader.string());
+                    break;
+                case /* repeated string IKIDs */ 9:
+                    message.IKIDs.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1415,6 +1654,12 @@ class ListIssuersRequest$Type extends MessageType<ListIssuersRequest> {
         /* string Cursor = 7; */
         if (message.Cursor !== "")
             writer.tag(7, WireType.LengthDelimited).string(message.Cursor);
+        /* repeated string IDs = 8; */
+        for (let i = 0; i < message.IDs.length; i++)
+            writer.tag(8, WireType.LengthDelimited).string(message.IDs[i]);
+        /* repeated string IKIDs = 9; */
+        for (let i = 0; i < message.IKIDs.length; i++)
+            writer.tag(9, WireType.LengthDelimited).string(message.IKIDs[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1485,13 +1730,15 @@ class UpdateIssuerRequest$Type extends MessageType<UpdateIssuerRequest> {
         super("pb.UpdateIssuerRequest", [
             { no: 2, name: "ID", kind: "scalar", localName: "ID", jsonName: "ID", T: 9 /*ScalarType.STRING*/, options: { "es.api.required": true } },
             { no: 3, name: "Config", kind: "message", localName: "Config", jsonName: "Config", T: () => IssuerConfig },
-            { no: 4, name: "Status", kind: "enum", localName: "Status", jsonName: "Status", T: () => ["pb.IssuerStatus.Enum", IssuerStatus_Enum] }
+            { no: 4, name: "Status", kind: "enum", localName: "Status", jsonName: "Status", T: () => ["pb.IssuerStatus.Enum", IssuerStatus_Enum] },
+            { no: 5, name: "ProjectID", kind: "scalar", localName: "ProjectID", jsonName: "ProjectID", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<UpdateIssuerRequest>): UpdateIssuerRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.ID = "";
         message.Status = 0;
+        message.ProjectID = "";
         if (value !== undefined)
             reflectionMergePartial<UpdateIssuerRequest>(this, message, value);
         return message;
@@ -1509,6 +1756,9 @@ class UpdateIssuerRequest$Type extends MessageType<UpdateIssuerRequest> {
                     break;
                 case /* pb.IssuerStatus.Enum Status */ 4:
                     message.Status = reader.int32();
+                    break;
+                case /* string ProjectID */ 5:
+                    message.ProjectID = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1531,6 +1781,9 @@ class UpdateIssuerRequest$Type extends MessageType<UpdateIssuerRequest> {
         /* pb.IssuerStatus.Enum Status = 4; */
         if (message.Status !== 0)
             writer.tag(4, WireType.Varint).int32(message.Status);
+        /* string ProjectID = 5; */
+        if (message.ProjectID !== "")
+            writer.tag(5, WireType.LengthDelimited).string(message.ProjectID);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1838,7 +2091,9 @@ class ListProfilesRequest$Type extends MessageType<ListProfilesRequest> {
             { no: 3, name: "IssuerLabel", kind: "scalar", localName: "IssuerLabel", jsonName: "IssuerLabel", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "Limit", kind: "scalar", localName: "Limit", jsonName: "Limit", T: 13 /*ScalarType.UINT32*/ },
             { no: 5, name: "Offset", kind: "scalar", localName: "Offset", jsonName: "Offset", T: 13 /*ScalarType.UINT32*/ },
-            { no: 6, name: "Cursor", kind: "scalar", localName: "Cursor", jsonName: "Cursor", T: 9 /*ScalarType.STRING*/ }
+            { no: 6, name: "Cursor", kind: "scalar", localName: "Cursor", jsonName: "Cursor", T: 9 /*ScalarType.STRING*/ },
+            { no: 7, name: "IDs", kind: "scalar", localName: "IDs", jsonName: "IDs", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 8, name: "Labels", kind: "scalar", localName: "Labels", jsonName: "Labels", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ListProfilesRequest>): ListProfilesRequest {
@@ -1848,6 +2103,8 @@ class ListProfilesRequest$Type extends MessageType<ListProfilesRequest> {
         message.Limit = 0;
         message.Offset = 0;
         message.Cursor = "";
+        message.IDs = [];
+        message.Labels = [];
         if (value !== undefined)
             reflectionMergePartial<ListProfilesRequest>(this, message, value);
         return message;
@@ -1871,6 +2128,12 @@ class ListProfilesRequest$Type extends MessageType<ListProfilesRequest> {
                     break;
                 case /* string Cursor */ 6:
                     message.Cursor = reader.string();
+                    break;
+                case /* repeated string IDs */ 7:
+                    message.IDs.push(reader.string());
+                    break;
+                case /* repeated string Labels */ 8:
+                    message.Labels.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1899,6 +2162,12 @@ class ListProfilesRequest$Type extends MessageType<ListProfilesRequest> {
         /* string Cursor = 6; */
         if (message.Cursor !== "")
             writer.tag(6, WireType.LengthDelimited).string(message.Cursor);
+        /* repeated string IDs = 7; */
+        for (let i = 0; i < message.IDs.length; i++)
+            writer.tag(7, WireType.LengthDelimited).string(message.IDs[i]);
+        /* repeated string Labels = 8; */
+        for (let i = 0; i < message.Labels.length; i++)
+            writer.tag(8, WireType.LengthDelimited).string(message.Labels[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1967,12 +2236,14 @@ export const ProfilesResponse = new ProfilesResponse$Type();
 class DeleteProfileRequest$Type extends MessageType<DeleteProfileRequest> {
     constructor() {
         super("pb.DeleteProfileRequest", [
-            { no: 2, name: "ID", kind: "scalar", localName: "ID", jsonName: "ID", T: 9 /*ScalarType.STRING*/, options: { "es.api.required": true } }
+            { no: 2, name: "ID", kind: "scalar", localName: "ID", jsonName: "ID", T: 9 /*ScalarType.STRING*/, options: { "es.api.required": true } },
+            { no: 3, name: "ProjectID", kind: "scalar", localName: "ProjectID", jsonName: "ProjectID", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<DeleteProfileRequest>): DeleteProfileRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.ID = "";
+        message.ProjectID = "";
         if (value !== undefined)
             reflectionMergePartial<DeleteProfileRequest>(this, message, value);
         return message;
@@ -1984,6 +2255,9 @@ class DeleteProfileRequest$Type extends MessageType<DeleteProfileRequest> {
             switch (fieldNo) {
                 case /* string ID */ 2:
                     message.ID = reader.string();
+                    break;
+                case /* string ProjectID */ 3:
+                    message.ProjectID = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2000,6 +2274,9 @@ class DeleteProfileRequest$Type extends MessageType<DeleteProfileRequest> {
         /* string ID = 2; */
         if (message.ID !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.ID);
+        /* string ProjectID = 3; */
+        if (message.ProjectID !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ProjectID);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3082,6 +3359,375 @@ class OCSPResponse$Type extends MessageType<OCSPResponse> {
  * @generated MessageType for protobuf message pb.OCSPResponse
  */
 export const OCSPResponse = new OCSPResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetSummaryRequest$Type extends MessageType<GetSummaryRequest> {
+    constructor() {
+        super("pb.GetSummaryRequest", [
+            { no: 2, name: "ProjectID", kind: "scalar", localName: "ProjectID", jsonName: "ProjectID", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GetSummaryRequest>): GetSummaryRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.ProjectID = "";
+        if (value !== undefined)
+            reflectionMergePartial<GetSummaryRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetSummaryRequest): GetSummaryRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string ProjectID */ 2:
+                    message.ProjectID = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetSummaryRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string ProjectID = 2; */
+        if (message.ProjectID !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.ProjectID);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.GetSummaryRequest
+ */
+export const GetSummaryRequest = new GetSummaryRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SummaryResponse$Type extends MessageType<SummaryResponse> {
+    constructor() {
+        super("pb.SummaryResponse", [
+            { no: 1, name: "At", kind: "scalar", localName: "At", jsonName: "At", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "Issuers", kind: "message", localName: "Issuers", jsonName: "Issuers", repeat: 2 /*RepeatType.UNPACKED*/, T: () => IssuerStatusCount },
+            { no: 3, name: "Certificates", kind: "message", localName: "Certificates", jsonName: "Certificates", repeat: 2 /*RepeatType.UNPACKED*/, T: () => CertificateStatusCount },
+            { no: 4, name: "Expiring", kind: "message", localName: "Expiring", jsonName: "Expiring", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ExpiryBucket },
+            { no: 5, name: "Crls", kind: "message", localName: "Crls", jsonName: "Crls", T: () => CrlCounts }
+        ]);
+    }
+    create(value?: PartialMessage<SummaryResponse>): SummaryResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.At = "";
+        message.Issuers = [];
+        message.Certificates = [];
+        message.Expiring = [];
+        if (value !== undefined)
+            reflectionMergePartial<SummaryResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SummaryResponse): SummaryResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string At */ 1:
+                    message.At = reader.string();
+                    break;
+                case /* repeated pb.IssuerStatusCount Issuers */ 2:
+                    message.Issuers.push(IssuerStatusCount.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated pb.CertificateStatusCount Certificates */ 3:
+                    message.Certificates.push(CertificateStatusCount.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated pb.ExpiryBucket Expiring */ 4:
+                    message.Expiring.push(ExpiryBucket.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* pb.CrlCounts Crls */ 5:
+                    message.Crls = CrlCounts.internalBinaryRead(reader, reader.uint32(), options, message.Crls);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SummaryResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string At = 1; */
+        if (message.At !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.At);
+        /* repeated pb.IssuerStatusCount Issuers = 2; */
+        for (let i = 0; i < message.Issuers.length; i++)
+            IssuerStatusCount.internalBinaryWrite(message.Issuers[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* repeated pb.CertificateStatusCount Certificates = 3; */
+        for (let i = 0; i < message.Certificates.length; i++)
+            CertificateStatusCount.internalBinaryWrite(message.Certificates[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated pb.ExpiryBucket Expiring = 4; */
+        for (let i = 0; i < message.Expiring.length; i++)
+            ExpiryBucket.internalBinaryWrite(message.Expiring[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* pb.CrlCounts Crls = 5; */
+        if (message.Crls)
+            CrlCounts.internalBinaryWrite(message.Crls, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.SummaryResponse
+ */
+export const SummaryResponse = new SummaryResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class IssuerStatusCount$Type extends MessageType<IssuerStatusCount> {
+    constructor() {
+        super("pb.IssuerStatusCount", [
+            { no: 1, name: "Status", kind: "enum", localName: "Status", jsonName: "Status", T: () => ["pb.IssuerStatus.Enum", IssuerStatus_Enum] },
+            { no: 2, name: "Count", kind: "scalar", localName: "Count", jsonName: "Count", T: 13 /*ScalarType.UINT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<IssuerStatusCount>): IssuerStatusCount {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.Status = 0;
+        message.Count = 0;
+        if (value !== undefined)
+            reflectionMergePartial<IssuerStatusCount>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IssuerStatusCount): IssuerStatusCount {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* pb.IssuerStatus.Enum Status */ 1:
+                    message.Status = reader.int32();
+                    break;
+                case /* uint32 Count */ 2:
+                    message.Count = reader.uint32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: IssuerStatusCount, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* pb.IssuerStatus.Enum Status = 1; */
+        if (message.Status !== 0)
+            writer.tag(1, WireType.Varint).int32(message.Status);
+        /* uint32 Count = 2; */
+        if (message.Count !== 0)
+            writer.tag(2, WireType.Varint).uint32(message.Count);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.IssuerStatusCount
+ */
+export const IssuerStatusCount = new IssuerStatusCount$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CertificateStatusCount$Type extends MessageType<CertificateStatusCount> {
+    constructor() {
+        super("pb.CertificateStatusCount", [
+            { no: 1, name: "Status", kind: "enum", localName: "Status", jsonName: "Status", T: () => ["pb.CertificateStatus.Enum", CertificateStatus_Enum] },
+            { no: 2, name: "Count", kind: "scalar", localName: "Count", jsonName: "Count", T: 13 /*ScalarType.UINT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<CertificateStatusCount>): CertificateStatusCount {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.Status = 0;
+        message.Count = 0;
+        if (value !== undefined)
+            reflectionMergePartial<CertificateStatusCount>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CertificateStatusCount): CertificateStatusCount {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* pb.CertificateStatus.Enum Status */ 1:
+                    message.Status = reader.int32();
+                    break;
+                case /* uint32 Count */ 2:
+                    message.Count = reader.uint32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CertificateStatusCount, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* pb.CertificateStatus.Enum Status = 1; */
+        if (message.Status !== 0)
+            writer.tag(1, WireType.Varint).int32(message.Status);
+        /* uint32 Count = 2; */
+        if (message.Count !== 0)
+            writer.tag(2, WireType.Varint).uint32(message.Count);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.CertificateStatusCount
+ */
+export const CertificateStatusCount = new CertificateStatusCount$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ExpiryBucket$Type extends MessageType<ExpiryBucket> {
+    constructor() {
+        super("pb.ExpiryBucket", [
+            { no: 1, name: "Days", kind: "scalar", localName: "Days", jsonName: "Days", T: 13 /*ScalarType.UINT32*/ },
+            { no: 2, name: "Count", kind: "scalar", localName: "Count", jsonName: "Count", T: 13 /*ScalarType.UINT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ExpiryBucket>): ExpiryBucket {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.Days = 0;
+        message.Count = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ExpiryBucket>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ExpiryBucket): ExpiryBucket {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* uint32 Days */ 1:
+                    message.Days = reader.uint32();
+                    break;
+                case /* uint32 Count */ 2:
+                    message.Count = reader.uint32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ExpiryBucket, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* uint32 Days = 1; */
+        if (message.Days !== 0)
+            writer.tag(1, WireType.Varint).uint32(message.Days);
+        /* uint32 Count = 2; */
+        if (message.Count !== 0)
+            writer.tag(2, WireType.Varint).uint32(message.Count);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.ExpiryBucket
+ */
+export const ExpiryBucket = new ExpiryBucket$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CrlCounts$Type extends MessageType<CrlCounts> {
+    constructor() {
+        super("pb.CrlCounts", [
+            { no: 1, name: "Issuers", kind: "scalar", localName: "Issuers", jsonName: "Issuers", T: 13 /*ScalarType.UINT32*/ },
+            { no: 2, name: "Current", kind: "scalar", localName: "Current", jsonName: "Current", T: 13 /*ScalarType.UINT32*/ },
+            { no: 3, name: "Due", kind: "scalar", localName: "Due", jsonName: "Due", T: 13 /*ScalarType.UINT32*/ },
+            { no: 4, name: "Overdue", kind: "scalar", localName: "Overdue", jsonName: "Overdue", T: 13 /*ScalarType.UINT32*/ },
+            { no: 5, name: "Missing", kind: "scalar", localName: "Missing", jsonName: "Missing", T: 13 /*ScalarType.UINT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<CrlCounts>): CrlCounts {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.Issuers = 0;
+        message.Current = 0;
+        message.Due = 0;
+        message.Overdue = 0;
+        message.Missing = 0;
+        if (value !== undefined)
+            reflectionMergePartial<CrlCounts>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CrlCounts): CrlCounts {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* uint32 Issuers */ 1:
+                    message.Issuers = reader.uint32();
+                    break;
+                case /* uint32 Current */ 2:
+                    message.Current = reader.uint32();
+                    break;
+                case /* uint32 Due */ 3:
+                    message.Due = reader.uint32();
+                    break;
+                case /* uint32 Overdue */ 4:
+                    message.Overdue = reader.uint32();
+                    break;
+                case /* uint32 Missing */ 5:
+                    message.Missing = reader.uint32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CrlCounts, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* uint32 Issuers = 1; */
+        if (message.Issuers !== 0)
+            writer.tag(1, WireType.Varint).uint32(message.Issuers);
+        /* uint32 Current = 2; */
+        if (message.Current !== 0)
+            writer.tag(2, WireType.Varint).uint32(message.Current);
+        /* uint32 Due = 3; */
+        if (message.Due !== 0)
+            writer.tag(3, WireType.Varint).uint32(message.Due);
+        /* uint32 Overdue = 4; */
+        if (message.Overdue !== 0)
+            writer.tag(4, WireType.Varint).uint32(message.Overdue);
+        /* uint32 Missing = 5; */
+        if (message.Missing !== 0)
+            writer.tag(5, WireType.Varint).uint32(message.Missing);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message pb.CrlCounts
+ */
+export const CrlCounts = new CrlCounts$Type();
 /**
  * @generated ServiceType for protobuf service pb.CA
  */
@@ -3106,5 +3752,6 @@ export const CA = new ServiceType("pb.CA", [
     { name: "ListRevokedCertificates", options: { "es.api.allowed_roles": "Viewer,APIKey", "es.api.scopes": "certs:read" }, I: ListRevokedCertificatesRequest, O: RevokedCertificatesResponse },
     { name: "GetCRL", options: { "es.api.allowed_roles": "Viewer,APIKey", "es.api.scopes": "certs:read" }, I: GetCrlRequest, O: CrlResponse },
     { name: "PublishCrls", options: { "es.api.allowed_roles": "Admin,Security,APIKey", "es.api.scopes": "ca:write" }, I: PublishCrlsRequest, O: CrlsResponse },
-    { name: "SignOCSP", options: { "es.api.allowed_roles": "Admin,Security", "es.api.scopes": "ca:write" }, I: OCSPRequest, O: OCSPResponse }
+    { name: "SignOCSP", options: { "es.api.allowed_roles": "Admin,Security", "es.api.scopes": "ca:write" }, I: OCSPRequest, O: OCSPResponse },
+    { name: "GetSummary", options: { "es.api.allowed_roles": "Viewer,APIKey", "es.api.scopes": "ca:read" }, I: GetSummaryRequest, O: SummaryResponse }
 ]);

@@ -10,6 +10,8 @@ import type { APIKeysResponse } from "./orgs";
 import type { ListAPIKeysRequest } from "./orgs";
 import type { APIKey } from "./orgs";
 import type { CreateAPIKeyRequest } from "./orgs";
+import type { EventsResponse } from "./orgs";
+import type { ListEventsRequest } from "./orgs";
 import type { DeleteProjectRequest } from "./orgs";
 import type { ProjectsResponse } from "./orgs";
 import type { ListProjectsRequest } from "./orgs";
@@ -173,6 +175,21 @@ export interface IOrgsClient {
      * @generated from protobuf rpc: DeleteProject
      */
     deleteProject(input: DeleteProjectRequest, options?: RpcOptions): UnaryCall<DeleteProjectRequest, Project>;
+    // 
+    // Events
+    // 
+
+    /**
+     * ListEvents returns the audit events of the org selected in the token,
+     * newest first: every event of the org for a caller with an org-wide
+     * role or an org-wide API key, the org-wide events and those of the
+     * caller's projects for a member with project grants only, and the
+     * events of one project with ProjectID, or for an API key restricted to
+     * the project
+     *
+     * @generated from protobuf rpc: ListEvents
+     */
+    listEvents(input: ListEventsRequest, options?: RpcOptions): UnaryCall<ListEventsRequest, EventsResponse>;
     // 
     // API Keys
     // 
@@ -389,6 +406,24 @@ export class OrgsClient implements IOrgsClient, ServiceInfo {
         return stackIntercept<DeleteProjectRequest, Project>("unary", this._transport, method, opt, input);
     }
     // 
+    // Events
+    // 
+
+    /**
+     * ListEvents returns the audit events of the org selected in the token,
+     * newest first: every event of the org for a caller with an org-wide
+     * role or an org-wide API key, the org-wide events and those of the
+     * caller's projects for a member with project grants only, and the
+     * events of one project with ProjectID, or for an API key restricted to
+     * the project
+     *
+     * @generated from protobuf rpc: ListEvents
+     */
+    listEvents(input: ListEventsRequest, options?: RpcOptions): UnaryCall<ListEventsRequest, EventsResponse> {
+        const method = this.methods[16], opt = this._transport.mergeOptions(options);
+        return stackIntercept<ListEventsRequest, EventsResponse>("unary", this._transport, method, opt, input);
+    }
+    // 
     // API Keys
     // 
 
@@ -398,7 +433,7 @@ export class OrgsClient implements IOrgsClient, ServiceInfo {
      * @generated from protobuf rpc: CreateAPIKey
      */
     createAPIKey(input: CreateAPIKeyRequest, options?: RpcOptions): UnaryCall<CreateAPIKeyRequest, APIKey> {
-        const method = this.methods[16], opt = this._transport.mergeOptions(options);
+        const method = this.methods[17], opt = this._transport.mergeOptions(options);
         return stackIntercept<CreateAPIKeyRequest, APIKey>("unary", this._transport, method, opt, input);
     }
     /**
@@ -407,7 +442,7 @@ export class OrgsClient implements IOrgsClient, ServiceInfo {
      * @generated from protobuf rpc: ListAPIKeys
      */
     listAPIKeys(input: ListAPIKeysRequest, options?: RpcOptions): UnaryCall<ListAPIKeysRequest, APIKeysResponse> {
-        const method = this.methods[17], opt = this._transport.mergeOptions(options);
+        const method = this.methods[18], opt = this._transport.mergeOptions(options);
         return stackIntercept<ListAPIKeysRequest, APIKeysResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -416,7 +451,7 @@ export class OrgsClient implements IOrgsClient, ServiceInfo {
      * @generated from protobuf rpc: DeleteAPIKey
      */
     deleteAPIKey(input: APIKeyRequest, options?: RpcOptions): UnaryCall<APIKeyRequest, RecordsResult> {
-        const method = this.methods[18], opt = this._transport.mergeOptions(options);
+        const method = this.methods[19], opt = this._transport.mergeOptions(options);
         return stackIntercept<APIKeyRequest, RecordsResult>("unary", this._transport, method, opt, input);
     }
 }

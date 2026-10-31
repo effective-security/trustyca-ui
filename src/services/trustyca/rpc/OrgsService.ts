@@ -12,9 +12,11 @@ import {
   DeleteInviteRequest,
   DeleteMemberRequest,
   DeleteProjectRequest,
+  EventsResponse,
   GetMembersRequest,
   GetProjectRequest,
   ListAPIKeysRequest,
+  ListEventsRequest,
   ListProjectsRequest,
   MembersResponse,
   Membership,
@@ -33,8 +35,8 @@ import { RecordsResult } from 'src/services/trustyca/protogen/types';
 import { unary } from './call';
 
 /**
- * The org of the token: its projects, members and invites, and API keys.
- * No request carries the org; ProjectID selects project scope.
+ * The org of the token: its projects, members and invites, API keys and
+ * audit events. No request carries the org; ProjectID selects project scope.
  */
 export interface IOrgsService {
   registerOrg(req: PartialMessage<RegisterOrgRequest>): Promise<Org>;
@@ -53,6 +55,7 @@ export interface IOrgsService {
   getProject(req: PartialMessage<GetProjectRequest>): Promise<Project>;
   listProjects(req: PartialMessage<ListProjectsRequest>): Promise<ProjectsResponse>;
   deleteProject(req: PartialMessage<DeleteProjectRequest>): Promise<Project>;
+  listEvents(req: PartialMessage<ListEventsRequest>): Promise<EventsResponse>;
   createAPIKey(req: PartialMessage<CreateAPIKeyRequest>): Promise<APIKey>;
   listAPIKeys(req: PartialMessage<ListAPIKeysRequest>): Promise<APIKeysResponse>;
   deleteAPIKey(req: PartialMessage<APIKeyRequest>): Promise<RecordsResult>;
@@ -152,6 +155,12 @@ export class OrgsService implements IOrgsService {
   deleteProject(req: PartialMessage<DeleteProjectRequest>): Promise<Project> {
     return unary('OrgsService: deleteProject', DeleteProjectRequest.create(req), (i, o) =>
       this.$rpc.deleteProject(i, o),
+    );
+  }
+
+  listEvents(req: PartialMessage<ListEventsRequest>): Promise<EventsResponse> {
+    return unary('OrgsService: listEvents', ListEventsRequest.create(req), (i, o) =>
+      this.$rpc.listEvents(i, o),
     );
   }
 

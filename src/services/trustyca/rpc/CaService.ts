@@ -16,6 +16,7 @@ import {
   GetCrlRequest,
   GetIssuerRequest,
   GetProfileRequest,
+  GetSummaryRequest,
   ImportIssuerRequest,
   IssuersResponse,
   ListCertificatesRequest,
@@ -33,6 +34,7 @@ import {
   RevokedCertificatesResponse,
   RootsResponse,
   SignCertificateRequest,
+  SummaryResponse,
   UpdateCertificateLabelRequest,
   UpdateIssuerRequest,
 } from 'src/services/trustyca/protogen/ca';
@@ -54,9 +56,10 @@ export const KEY_OPERATION_TIMEOUT = 60_000;
 /**
  * The CA of the tenant on the wfe, which forwards every call to the
  * signing plane with the org of the token: requests carry no org.
- * The list requests and PublishCrls take the project selection when the
- * page names no ProjectID (an explicit '' asks for every project); the
- * create, revoke and label requests name their project themselves.
+ * The list requests, GetSummary and PublishCrls take the project selection
+ * when the page names no ProjectID (an explicit '' asks for every project);
+ * the create, update, revoke and label requests name their project
+ * themselves (a project Admin sets it from the selection, BE-5).
  */
 export interface ICaService {
   registerIssuer(req: PartialMessage<RegisterIssuerRequest>): Promise<Issuer>;
@@ -85,6 +88,7 @@ export interface ICaService {
   ): Promise<RevokedCertificatesResponse>;
   getCRL(req: PartialMessage<GetCrlRequest>): Promise<CrlResponse>;
   publishCrls(req: PartialMessage<PublishCrlsRequest>): Promise<CrlsResponse>;
+  getSummary(req: PartialMessage<GetSummaryRequest>): Promise<SummaryResponse>;
 }
 
 const keyOperation: RpcOptions = { timeout: KEY_OPERATION_TIMEOUT };
@@ -242,6 +246,12 @@ export class CaService implements ICaService {
       PublishCrlsRequest.create(this.withProject(req)),
       (i, o) => this.$rpc.publishCrls(i, o),
       keyOperation,
+    );
+  }
+
+  getSummary(req: PartialMessage<GetSummaryRequest>): Promise<SummaryResponse> {
+    return this.call('getSummary', GetSummaryRequest.create(this.withProject(req)), (i, o) =>
+      this.$rpc.getSummary(i, o),
     );
   }
 
